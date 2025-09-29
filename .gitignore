@@ -1,0 +1,38 @@
+# Node/Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Java/Backend
+*.class
+*.jar
+*.war
+*.ear
+backend/target/
+
+# VSCode/Editor
+.vscode/
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Docker
+postgres_data/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Env
+.env

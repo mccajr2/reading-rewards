@@ -1,0 +1,161 @@
+import React, {useState, useEffect} from 'react';
+
+export default function ReadingList() {
+  const [books, setBooks] = useState<any[]>([]);
+  const [chapters, setChapters] = useState<{ [olid: string]: any[] }>({});
+  const [readChapters, setReadChapters] = useState<{ [olid: string]: Set<number> }>({});
+  const [readDates, setReadDates] = useState<{ [olid: string]: { [chapterIndex: number]: string } }>({});
+
+  const API_URL = import.meta.env.VITE_API_URL;
+
+  useEffect(() => {
+    const fetchList = async () => {
+      // Fetch all books
+      const r = await fetch(`${API_URL}/books`);
+      if (!r.ok) return;
+      const allBooks = await r.json();
+      const inProgressBooks = allBooks.filter((b: any) => b.inProgress);
+      setBooks(inProgressBooks);
+
+      // Fetch chapters for each book
+      const chaptersObj: { [olid: string]: any[] } = {};
+      for (const book of inProgressBooks) {
+        const rc = await fetch(`${API_URL}/books/${book.olid}/chapters`);
+        chaptersObj[book.olid] = rc.ok ? await rc.json() : [];
+      }
+      setChapters(chaptersObj);
+
+      // Fetch read chapters and dates for each book
+      const readObj: { [olid: string]: Set<number> } = {};
+      const dateObj: { [olid: string]: { [chapterIndex: number]: string } } = {};
+      const historyRes = await fetch(`${API_URL}/history`);
+      if (historyRes.ok) {
+        const history = await historyRes.json();
+        inProgressBooks.forEach((book: any) => {
+          const bookHistory = history.filter((h: any) => h.bookOlid === book.olid);
+          readObj[book.olid] = new Set(bookHistory.map((h: any) => h.chapterIndex));
+          dateObj[book.olid] = {};
+          bookHistory.forEach((h: any) => {
+            if (h.readAt) {
+              const date = new Date(h.readAt);
+              const formatted = date.toLocaleDateString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric'
+              });
+              dateObj[book.olid][h.chapterIndex] = formatted;
+            }
+          });
+        });
+      }
+      setReadChapters(readObj);
+      setReadDates(dateObj);
+    };
+    fetchList();
+  }, []);
+
+  const handleCheck = async (olid: string, chapterIndex: number, isRead: boolean, isMostRecent: boolean) => {
+    if (!isRead) {
+      // Mark as read
+      const res = await fetch(`${API_URL}/books/${olid}/chapters/${chapterIndex}/read`, { method: 'POST' });
+      let readAt = new Date().toLocaleDateString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric'
+      });
+      if (res.ok) {
+        try {
+          const data = await res.json();
+          if (data.readAt) {
+            readAt = new Date(data.readAt).toLocaleDateString('en-US', {
+              year: 'numeric', month: 'long', day: 'numeric'
+            });
+          }
+        } catch {}
+      }
+      setReadChapters(prev => {
+        const updated = { ...prev };
+        if (!updated[olid]) updated[olid] = new Set();
+        updated[olid].add(chapterIndex);
+        return updated;
+      });
+      setReadDates(prev => {
+        const updated = { ...prev };
+        if (!updated[olid]) updated[olid] = {};
+        updated[olid][chapterIndex] = readAt;
+        return updated;
+      });
+      if (window.updateCredits) window.updateCredits();
+    } else if (isMostRecent) {
+      // Confirm and delete most recent read
+      if (window.confirm('Are you sure you want to undo the most recent read for this chapter?')) {
+        const res = await fetch(`${API_URL}/books/${olid}/chapters/${chapterIndex}/read`, { method: 'DELETE' });
+        if (res.ok) {
+          setReadChapters(prev => {
+            const updated = { ...prev };
+            if (updated[olid]) updated[olid].delete(chapterIndex);
+            return updated;
+          });
+          setReadDates(prev => {
+            const updated = { ...prev };
+            if (updated[olid]) delete updated[olid][chapterIndex];
+            return updated;
+          });
+          if (window.updateCredits) window.updateCredits();
+        }
+      }
+    }
+  };
+
+  return (
+    <div>
+      <h2>Reading List</h2>
+      {books.length === 0 && <p>No books in progress.</p>}
+      {books.map(book => (
+        <div key={book.olid} style={{ marginBottom: '2em' }}>
+          <h4>{book.title} <span className="text-muted">({book.authors})</span></h4>
+          <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
+            <ul className="list-group">
+              {(chapters[book.olid] || []).map((chapter: any, _unused: number, arr: any[]) => {
+                const isRead = readChapters[book.olid]?.has(chapter.chapterIndex) || false;
+                // Current chapter is the first unchecked chapter
+                const currentChapterIndex = Math.min(...arr.filter((c: any) => !readChapters[book.olid]?.has(c.chapterIndex)).map((c: any) => c.chapterIndex));
+                const isCurrent = chapter.chapterIndex === currentChapterIndex;
+                // Find most recent read chapter for this book
+                const readIndexes = arr.filter((c: any) => readChapters[book.olid]?.has(c.chapterIndex)).map((c: any) => c.chapterIndex);
+                const mostRecentRead = Math.max(...readIndexes);
+                const isMostRecent = isRead && chapter.chapterIndex === mostRecentRead;
+                return (
+                  <li
+                    key={chapter.chapterIndex}
+                    className="list-group-item d-flex align-items-center"
+                    style={{
+                      color: isRead ? '#888' : undefined,
+                      textDecoration: isRead ? 'line-through' : undefined,
+                      fontStyle: isRead ? 'italic' : undefined
+                    }}
+                  >
+                    {(isCurrent && !isRead) || isMostRecent ? (
+                      <input
+                        type="checkbox"
+                        checked={isRead}
+                        onChange={() => handleCheck(book.olid, chapter.chapterIndex, isRead, isMostRecent)}
+                        style={{ marginRight: '1em' }}
+                      />
+                    ) : (
+                      <span style={{ width: '2em', display: 'inline-block' }}></span>
+                    )}
+                    <span>
+                      {chapter.name || chapter.title || `Chapter ${chapter.chapterIndex}`}
+                      {isRead && readDates[book.olid]?.[chapter.chapterIndex] && (
+                        <span style={{ marginLeft: '1em', fontSize: '0.9em', color: '#666' }}>
+                          ({readDates[book.olid][chapter.chapterIndex]})
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
