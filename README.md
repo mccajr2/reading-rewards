@@ -12,7 +12,7 @@ Reading Rewards is a full-stack application for tracking reading progress and re
 
 ### Prerequisites
 - Docker & Docker Compose (for database)
-- Java 17+ (for backend)
+- Java 21+ (for backend)
 - Node.js 18+ (for frontend)
 
 ### 1. Start the Database (Docker)
