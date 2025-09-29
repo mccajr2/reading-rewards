@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS books (
     in_progress BOOLEAN DEFAULT FALSE
 );
 
+
 CREATE TABLE IF NOT EXISTS chapters (
     id BIGSERIAL PRIMARY KEY,
     book_olid VARCHAR(255),

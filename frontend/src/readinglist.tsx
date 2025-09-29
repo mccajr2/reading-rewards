@@ -1,4 +1,10 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
+
+declare global {
+  interface Window {
+    updateCredits?: () => void;
+  }
+}
 
 export default function ReadingList() {
   const [books, setBooks] = useState<any[]>([]);
@@ -67,7 +73,7 @@ export default function ReadingList() {
               year: 'numeric', month: 'long', day: 'numeric'
             });
           }
-        } catch {}
+        } catch { }
       }
       setReadChapters(prev => {
         const updated = { ...prev };
@@ -82,6 +88,17 @@ export default function ReadingList() {
         return updated;
       });
       if (window.updateCredits) window.updateCredits();
+
+      // Check if this was the final chapter
+      const allChapters = chapters[olid] || [];
+      const allRead = allChapters.every((c: any) => (c.chapterIndex === chapterIndex ? true : readChapters[olid]?.has(c.chapterIndex)));
+      if (allChapters.length > 0 && allRead) {
+        if (window.confirm('Congratulations! You finished the book. Mark as finished and allow rereading?')) {
+          await fetch(`${API_URL}/books/${olid}/finish`, { method: 'POST' });
+          // Refresh the list
+          window.location.reload();
+        }
+      }
     } else if (isMostRecent) {
       // Confirm and delete most recent read
       if (window.confirm('Are you sure you want to undo the most recent read for this chapter?')) {
@@ -109,7 +126,11 @@ export default function ReadingList() {
       {books.length === 0 && <p>No books in progress.</p>}
       {books.map(book => (
         <div key={book.olid} style={{ marginBottom: '2em' }}>
-          <h4>{book.title} <span className="text-muted">({book.authors})</span></h4>
+          <h4>
+            {book.title}
+            {book.readCount > 1 ? ` x${book.readCount}` : ''}
+            <span className="text-muted"> ({book.authors})</span>
+          </h4>
           <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
             <ul className="list-group">
               {(chapters[book.olid] || []).map((chapter: any, _unused: number, arr: any[]) => {

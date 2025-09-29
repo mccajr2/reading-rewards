@@ -12,7 +12,7 @@ public class Book {
     private String title;
     private String authors;
 
-    private boolean inProgress;
+    // Removed inProgress; now tracked in BookRead
 
     // constructors, getters, setters
     public Book() {}
@@ -27,6 +27,5 @@ public class Book {
     public void setTitle(String t){this.title=t;}
     public String getAuthors(){return authors;}
     public void setAuthors(String a){this.authors=a;}
-    public boolean isInProgress(){return inProgress;}
-    public void setInProgress(boolean v){this.inProgress=v;}
+    // inProgress now tracked in BookRead
 }

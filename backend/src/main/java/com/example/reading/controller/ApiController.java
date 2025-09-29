@@ -7,6 +7,7 @@ import com.example.reading.service.OpenLibraryService;
 import com.example.reading.repo.*;
 import com.example.reading.model.*;
 import org.springframework.beans.factory.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api")
@@ -17,6 +18,7 @@ public class ApiController {
     @Autowired BookRepository bookRepo;
     @Autowired ChapterRepository chapterRepo;
     @Autowired ChapterReadRepository readRepo;
+    @Autowired BookReadRepository bookReadRepo;
 
     @GetMapping("/search")
     public Object search(@RequestParam String q){
@@ -30,14 +32,47 @@ public class ApiController {
     }
 
     @GetMapping("/books")
-    public List<Book> getBooks() {
-        return bookRepo.findAll();
+    public List<Map<String, Object>> getBooks() {
+        List<Book> books = bookRepo.findAll();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Book book : books) {
+            BookRead br = bookReadRepo.findTopByBookOrderByIdDesc(book);
+            boolean inProgress = br != null && br.isInProgress();
+            int readCount = br != null ? br.getReadCount() : 0;
+            Map<String, Object> m = new HashMap<>();
+            m.put("olid", book.getOlid());
+            m.put("title", book.getTitle());
+            m.put("authors", book.getAuthors());
+            m.put("inProgress", inProgress);
+            m.put("readCount", readCount);
+            result.add(m);
+        }
+        return result;
     }
 
     @PostMapping("/books")
     public Book saveBook(@RequestBody Book b){
-        b.setInProgress(true);
-        return bookRepo.save(b);
+        Book saved = bookRepo.save(b);
+        BookRead br = new BookRead(saved);
+        bookReadRepo.save(br);
+        return saved;
+    }
+
+    // Called when the final chapter is checked off
+    @PostMapping("/books/{olid}/finish")
+    @Transactional
+    public ResponseEntity<?> finishBook(@PathVariable String olid) {
+        Book book = bookRepo.findById(olid).orElse(null);
+        if (book == null) return ResponseEntity.notFound().build();
+        BookRead br = bookReadRepo.findTopByBookOrderByIdDesc(book);
+        if (br == null) return ResponseEntity.notFound().build();
+        // Purge ChapterRead for this book
+        readRepo.deleteAllByBookOlid(olid);
+        // Flip inProgress to false and increment readCount
+        br.setInProgress(false);
+        br.setReadCount(br.getReadCount() + 1);
+        bookReadRepo.save(br);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/books/{olid}/chapters")
