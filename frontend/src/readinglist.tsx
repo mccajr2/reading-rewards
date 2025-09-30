@@ -7,10 +7,37 @@ declare global {
 }
 
 export default function ReadingList() {
+  // Refs for each book's chapter list div
+  const chapterListRefs = React.useRef<{ [olid: string]: HTMLDivElement | null }>({});
+
   const [books, setBooks] = useState<any[]>([]);
   const [chapters, setChapters] = useState<{ [olid: string]: any[] }>({});
   const [readChapters, setReadChapters] = useState<{ [olid: string]: Set<number> }>({});
   const [readDates, setReadDates] = useState<{ [olid: string]: { [chapterIndex: number]: string } }>({});
+
+  useEffect(() => {
+    books.forEach(book => {
+      const chaptersArr = chapters[book.olid] || [];
+      let targetChapter: any = chaptersArr.find((c: any) => !readChapters[book.olid]?.has(c.chapterIndex));
+      // If all chapters are read, scroll to last chapter
+      if (!targetChapter && chaptersArr.length > 0) {
+        targetChapter = chaptersArr[chaptersArr.length - 1];
+      }
+      if (chapterListRefs.current[book.olid] && targetChapter) {
+        const bookDiv = chapterListRefs.current[book.olid];
+        const ul = bookDiv?.querySelector('ul');
+        const li = ul?.querySelector(`[data-chapter='${targetChapter.chapterIndex}']`);
+        if (li && bookDiv) {
+          // Calculate offset of li relative to bookDiv and set scrollTop
+          const liRect = (li as HTMLElement).getBoundingClientRect();
+          const divRect = bookDiv.getBoundingClientRect();
+          const offset = liRect.top - divRect.top + bookDiv.scrollTop;
+          // Center the target chapter in the book div
+          bookDiv.scrollTop = offset - bookDiv.clientHeight / 2 + (li as HTMLElement).offsetHeight / 2;
+        }
+      }
+    });
+  }, [books, chapters, readChapters]);
 
   const API_URL = import.meta.env.VITE_API_URL;
 
@@ -131,7 +158,10 @@ export default function ReadingList() {
             {book.readCount > 1 ? ` x${book.readCount}` : ''}
             <span className="text-muted"> ({book.authors})</span>
           </h4>
-          <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
+          <div
+            style={{ maxHeight: '320px', overflowY: 'auto' }}
+            ref={el => (chapterListRefs.current[book.olid] = el)}
+          >
             <ul className="list-group">
               {(chapters[book.olid] || []).map((chapter: any, _unused: number, arr: any[]) => {
                 const isRead = readChapters[book.olid]?.has(chapter.chapterIndex) || false;
@@ -145,6 +175,7 @@ export default function ReadingList() {
                 return (
                   <li
                     key={chapter.chapterIndex}
+                    data-chapter={chapter.chapterIndex}
                     className="list-group-item d-flex align-items-center"
                     style={{
                       color: isRead ? '#888' : undefined,
