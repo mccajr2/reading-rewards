@@ -1,4 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import Checkbox from '@mui/material/Checkbox';
+
 
 declare global {
   interface Window {
@@ -148,21 +155,21 @@ export default function ReadingList() {
   };
 
   return (
-    <div>
-      <h2>Reading List</h2>
-      {books.length === 0 && <p>No books in progress.</p>}
+    <Box>
+      <Typography variant="h4" gutterBottom>Reading List</Typography>
+      {books.length === 0 && <Typography>No books in progress.</Typography>}
       {books.map(book => (
-        <div key={book.olid} style={{ marginBottom: '2em' }}>
-          <h4>
+        <Box key={book.olid} mb={4}>
+          <Typography variant="h6" fontWeight="bold">
             {book.title}
             {book.readCount > 1 ? ` x${book.readCount}` : ''}
-            <span className="text-muted"> ({book.authors})</span>
-          </h4>
-          <div
-            style={{ maxHeight: '320px', overflowY: 'auto' }}
-            ref={el => (chapterListRefs.current[book.olid] = el)}
+            <Typography component="span" variant="body2" color="text.secondary"> ({book.authors})</Typography>
+          </Typography>
+          <Box
+            sx={{ maxHeight: 320, overflowY: 'auto', borderRadius: 1, border: '1px solid #dee2e6', background: '#fff', mt: 1 }}
+            ref={el => { chapterListRefs.current[book.olid] = el as HTMLDivElement | null; }}
           >
-            <ul className="list-group">
+            <List disablePadding>
               {(chapters[book.olid] || []).map((chapter: any, _unused: number, arr: any[]) => {
                 const isRead = readChapters[book.olid]?.has(chapter.chapterIndex) || false;
                 // Current chapter is the first unchecked chapter
@@ -173,41 +180,45 @@ export default function ReadingList() {
                 const mostRecentRead = Math.max(...readIndexes);
                 const isMostRecent = isRead && chapter.chapterIndex === mostRecentRead;
                 return (
-                  <li
+                  <ListItem
                     key={chapter.chapterIndex}
                     data-chapter={chapter.chapterIndex}
-                    className="list-group-item d-flex align-items-center"
-                    style={{
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
                       color: isRead ? '#888' : undefined,
                       textDecoration: isRead ? 'line-through' : undefined,
-                      fontStyle: isRead ? 'italic' : undefined
+                      fontStyle: isRead ? 'italic' : undefined,
+                      py: 1,
+                      borderBottom: '1px solid #eee',
                     }}
                   >
                     {(isCurrent && !isRead) || isMostRecent ? (
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={isRead}
                         onChange={() => handleCheck(book.olid, chapter.chapterIndex, isRead, isMostRecent)}
-                        style={{ marginRight: '1em' }}
+                        sx={{ mr: 2 }}
                       />
                     ) : (
-                      <span style={{ width: '2em', display: 'inline-block' }}></span>
+                      <Box sx={{ width: '2em', display: 'inline-block' }} />
                     )}
-                    <span>
-                      {chapter.name || chapter.title || `Chapter ${chapter.chapterIndex}`}
-                      {isRead && readDates[book.olid]?.[chapter.chapterIndex] && (
-                        <span style={{ marginLeft: '1em', fontSize: '0.9em', color: '#666' }}>
-                          ({readDates[book.olid][chapter.chapterIndex]})
-                        </span>
-                      )}
-                    </span>
-                  </li>
+                    <Box>
+                      <Typography component="span">
+                        {chapter.name || chapter.title || `Chapter ${chapter.chapterIndex}`}
+                        {isRead && readDates[book.olid]?.[chapter.chapterIndex] && (
+                          <Typography component="span" sx={{ ml: 2, fontSize: '0.9em', color: '#666' }}>
+                            ({readDates[book.olid][chapter.chapterIndex]})
+                          </Typography>
+                        )}
+                      </Typography>
+                    </Box>
+                  </ListItem>
                 );
               })}
-            </ul>
-          </div>
-        </div>
+            </List>
+          </Box>
+        </Box>
       ))}
-    </div>
+    </Box>
   );
 }

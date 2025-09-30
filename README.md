@@ -5,7 +5,7 @@
 Reading Rewards is a full-stack application for tracking reading progress and rewarding chapters read. It features:
 - **Backend:** Spring Boot (Java) with Flyway migrations
 - **Database:** PostgreSQL (via Docker)
-- **Frontend:** React + TypeScript + Bootstrap
+- **Frontend:** React + TypeScript + MUI (Material-UI)
 - **Book Data:** Integrates with Open Library API for book search and details
 
 ## Quick Start (Development)
@@ -50,7 +50,7 @@ The frontend runs on [http://localhost:3000](http://localhost:3000) and expects 
 
 ## Project Structure
 - `backend/` — Spring Boot application
-- `frontend/` — React + TypeScript UI
+- `frontend/` — React + TypeScript UI (using MUI)
 - `docker-compose.yml` — Database container config
 - `README.md` — Project documentation
 
