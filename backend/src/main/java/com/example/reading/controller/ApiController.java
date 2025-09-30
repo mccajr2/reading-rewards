@@ -8,6 +8,9 @@ import com.example.reading.repo.*;
 import com.example.reading.model.*;
 import org.springframework.beans.factory.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
 
 @RestController
 @RequestMapping("/api")
@@ -23,6 +26,11 @@ public class ApiController {
     @GetMapping("/search")
     public Object search(@RequestParam String q){
         return ol.search(q);
+    }
+
+    @GetMapping("/search_by_isbn")
+    public Object searchByIsbn(@RequestParam String isbn) {
+        return ol.searchByIsbn(isbn);
     }
 
     @GetMapping("/work/{olid}")
