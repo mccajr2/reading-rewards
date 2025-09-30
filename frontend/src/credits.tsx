@@ -1,7 +1,7 @@
-import React, {useState, useEffect} from 'react';
-export default function Credits(){
+import React, { useState, useEffect } from 'react';
+export default function Credits() {
   const API_URL = import.meta.env.VITE_API_URL;
-  const [d,setD]=useState(0);
+  const [d, setD] = useState(0);
   useEffect(() => {
     const fetchCredits = () => {
       fetch(`${API_URL}/credits`)
@@ -17,8 +17,17 @@ export default function Credits(){
     return () => { delete window.updateCredits; };
   }, []);
   return (
-    <span className="badge bg-success ms-3">
-      Total: ${d.toFixed(2)}
-    </span>
+
+    <div className="earnings-badge">
+      <div className="badge-container">
+        <div className="badge-label">
+          <span className="star-icon">⭐</span>
+          Reading Earnings
+          <span className="star-icon">⭐</span>
+        </div>
+        <div className="badge-amount" id="earnings">${d.toFixed(2)}</div>
+        <div className="badge-subtitle">Keep Reading! 📚</div>
+      </div>
+    </div>
   );
 }
