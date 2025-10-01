@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Search from './components/Search';
 import ReadingList from './components/ReadingList';
 import History from './components/History';
@@ -23,7 +23,7 @@ export default function App() {
     }
   }, [KID_NAME]);
   const [view, setView] = useState<'search' | 'list' | 'history'>('search');
-  const [hasInProgress, setHasInProgress] = useState(false);
+  const [, setHasInProgress] = useState(false);
 
   useEffect(() => {
     const API_URL = import.meta.env.VITE_API_URL;
