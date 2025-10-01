@@ -9,16 +9,20 @@ import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
+import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
 
 
-export default function Search(){
+export default function Search() {
   const [tab, setTab] = useState(0);
+  const [scanning, setScanning] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const [q, setQ] = useState('');
   const [results, setResults] = useState<any[]>([]);
-  const [expanded, setExpanded] = useState<{[key: number]: boolean}>({});
-  const [details, setDetails] = useState<{[key: number]: any}>({});
-  const [existingBooks, setExistingBooks] = useState<{[olid: string]: any}>({});
+  const [expanded, setExpanded] = useState<{ [key: number]: boolean }>({});
+  const [details, setDetails] = useState<{ [key: number]: any }>({});
+  const [existingBooks, setExistingBooks] = useState<{ [olid: string]: any }>({});
 
   const API_URL = import.meta.env.VITE_API_URL;
 
@@ -28,7 +32,7 @@ export default function Search(){
       const r = await fetch(`${API_URL}/books`);
       if (r.ok) {
         const books = await r.json();
-        const map: {[olid: string]: any} = {};
+        const map: { [olid: string]: any } = {};
         books.forEach((b: any) => { map[b.olid] = b; });
         setExistingBooks(map);
       }
@@ -102,6 +106,61 @@ export default function Search(){
     }
   };
 
+  const handleScan = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      const hints = new Map();
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+        BarcodeFormat.UPC_A,
+        BarcodeFormat.UPC_E,
+        BarcodeFormat.EAN_8,
+        BarcodeFormat.EAN_13,
+      ]);
+
+      const codeReader = new BrowserMultiFormatReader(hints);
+
+      const constraints = { video: { facingMode: "environment" } as MediaTrackConstraints };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      const videoElement = document.getElementById("video") as HTMLVideoElement;
+      videoElement.srcObject = stream;
+      await videoElement.play();
+      setScanning(true);
+
+      codeReader.decodeFromVideoDevice(null, "video", async (result) => {
+        if (result) {
+          const isbnOrUpc = result.getText();
+          console.log("✅ Scanned:", isbnOrUpc);
+
+          codeReader.reset();
+          (stream.getTracks() || []).forEach((t) => t.stop());
+          videoElement.srcObject = null;
+          setScanning(false);
+
+          try {
+            const API_URL = import.meta.env.VITE_API_URL;
+            const response = await fetch(
+              `${API_URL}/lookup?isbn=${isbnOrUpc}`
+            );
+            if (!response.ok) throw new Error(`Book not found for code ${isbnOrUpc}`);
+            const book = await response.json();
+            setResults([book]);
+            setExpanded({});
+            setDetails({});
+            // setSelectedBook(book);
+          } catch (lookupErr: any) {
+            setError(lookupErr.message || "Lookup failed.");
+          }
+        }
+      });
+    } catch (err: any) {
+      setError(err.message || "Scanner error");
+      setLoading(false);
+      setScanning(false);
+    }
+  };
+
   return (
     <Box>
       <Tabs
@@ -117,7 +176,38 @@ export default function Search(){
       </Tabs>
       {tab === 0 && (
         <Box p={2}>
-          <Typography variant="h6">TODO</Typography>
+          {/* UPC Scanner */}
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+            {!scanning && (
+              <Button variant="contained" onClick={handleScan} disabled={loading}>
+                Start Scanner
+              </Button>
+            )}
+            {scanning && (
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={() => {
+                  const videoElement = document.getElementById("video") as HTMLVideoElement;
+                  if (videoElement && videoElement.srcObject) {
+                    (videoElement.srcObject as MediaStream)
+                      .getTracks()
+                      .forEach((track) => track.stop());
+                    videoElement.srcObject = null;
+                  }
+                  setScanning(false);
+                }}
+              >
+                Stop Scanner
+              </Button>
+            )}
+          </Stack>
+          <video
+            id="video"
+            width="300"
+            height="200"
+            style={{ border: "1px solid black" }}
+          />
         </Box>
       )}
       {tab === 1 && (

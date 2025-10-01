@@ -28,7 +28,7 @@ public class ApiController {
         return ol.search(q);
     }
 
-    @GetMapping("/search_by_isbn")
+    @GetMapping("/lookup")
     public Object searchByIsbn(@RequestParam String isbn) {
         return ol.searchByIsbn(isbn);
     }
