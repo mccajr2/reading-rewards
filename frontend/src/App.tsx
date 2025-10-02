@@ -38,11 +38,11 @@ export default function App() {
       }
     });
   }, []);
-  
+
   return (
     <ThemeProvider theme={bruinsTheme}>
       <CssBaseline />
-      <Box sx={{ 
+      <Box sx={{
         minHeight: '100vh',
         background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
       }}>
@@ -50,26 +50,47 @@ export default function App() {
         <Box sx={{ position: 'fixed', top: 20, right: 32, zIndex: 2000 }}>
           <Credits />
         </Box>
-        
+
         <Box sx={{ maxWidth: 1400, mx: 'auto', py: 3, pr: { xs: 2, sm: 28 }, px: 3 }}>
           <AppBar position="static" color="secondary" elevation={0} sx={{ borderRadius: 2, mb: 3 }}>
-            <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
-              <Typography 
-                variant="h6" 
-                component="div" 
-                sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 1, 
-                  fontWeight: 'bold',
+            <Box sx={{
+              padding: 1
+            }} />
+            <Toolbar
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 2, // optional: adds space between heading and tabs
+                minHeight: 120, // optional: gives more vertical space
+              }}
+            >
+              <Typography
+                variant="h4"
+                component="div"
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  fontWeight: 900,
                   color: '#FFB81C',
-                  textShadow: '0 0 10px rgba(255, 184, 28, 0.5)',
+                  textShadow: '0 1px 3px rgba(255, 184, 28, 0.15), 0 1px 0 #000',
+                  letterSpacing: 2,
+                  fontFamily: `'Luckiest Guy', 'Fredoka One', 'Baloo 2', 'Arial Rounded MT Bold', Arial, sans-serif`,
+                  fontSize: { xs: '2rem', sm: '2.8rem', md: '3.2rem' },
+                  lineHeight: 1.1,
+                  py: 1,
                 }}
               >
-                <span>🏒</span>
+                <span role="img" aria-label="hockey">🏒</span>
                 {KID_NAME}'s Reading Rewards
-                <span>🏒</span>
+                <span role="img" aria-label="hockey">🏒</span>
               </Typography>
+              <link
+                href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Fredoka+One&family=Baloo+2:wght@700&display=swap"
+                rel="stylesheet"
+              />
               <Tabs
                 value={view}
                 onChange={(_e, v) => setView(v)}
@@ -80,13 +101,25 @@ export default function App() {
                 <Tab label="Find Books" value="search" />
               </Tabs>
             </Toolbar>
+            <Box sx={{ padding: 1 }} />
           </AppBar>
 
-          {view === 'search' && <Search />}
-          {view === 'list' && <ReadingList />}
-          {view === 'history' && <History />}
+          <Box
+            sx={{
+              bgcolor: '#fff',
+              borderRadius: 3,
+              boxShadow: 3,
+              p: { xs: 2, sm: 4 },
+              minHeight: 400,
+              mb: 4,
+            }}
+          >
+            {view === 'search' && <Search />}
+            {view === 'list' && <ReadingList />}
+            {view === 'history' && <History />}
+          </Box>
         </Box>
       </Box>
-    </ThemeProvider>
+    </ThemeProvider >
   );
 }

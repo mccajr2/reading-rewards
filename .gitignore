@@ -11,6 +11,7 @@ frontend/src/dto
 *.war
 *.ear
 backend/target/
+backend/flyway.conf
 
 # VSCode/Editor
 .vscode/
