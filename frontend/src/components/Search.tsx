@@ -10,7 +10,7 @@ import Stack from '@mui/material/Stack';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
-
+import InfoBanner from './InfoBanner';
 
 export default function Search() {
   const [tab, setTab] = useState(0);
@@ -163,6 +163,13 @@ export default function Search() {
 
   return (
     <Box>
+
+      <InfoBanner
+        title="Find your next adventure!"
+        description="Scan a book's barcode with your camera for instant info, or search
+          by title or author. What will you read next? 📸🔍"
+      />
+
       <Tabs
         value={tab}
         onChange={(_, v) => {

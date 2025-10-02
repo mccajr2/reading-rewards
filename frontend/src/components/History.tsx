@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
+import InfoBanner from './InfoBanner';
 
 export default function History() {
   const [books, setBooks] = useState<any[]>([]);
@@ -30,8 +32,14 @@ export default function History() {
   }, {});
 
   return (
-    <div>
-      <Typography variant="h6" gutterBottom>History</Typography>
+    <Box>
+
+      <InfoBanner
+        title="The trophy case!"
+        description="Every book you've finished lives here. Look back at all your completed 
+          reads and see how far you've come. Champion reader! 🏅"
+      />
+
       {error && <Typography color="error" sx={{ mb: 2 }}>Error: {error}</Typography>}
       <List>
         {Object.values(grouped).map((book: any, i: number) => (
@@ -43,6 +51,6 @@ export default function History() {
           </ListItem>
         ))}
       </List>
-    </div>
+    </Box>
   );
 }

@@ -5,7 +5,7 @@ import Typography from '@mui/material/Typography';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import Checkbox from '@mui/material/Checkbox';
-
+import InfoBanner from './InfoBanner';
 
 declare global {
   interface Window {
@@ -156,7 +156,13 @@ export default function ReadingList() {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>Reading List</Typography>
+
+      <InfoBanner
+        title="Your active books!"
+        description="Check off each chapter as you finish it and watch your reading rewards add up.
+          Find the chapter with the checkbox—that's your next mission! 💰"
+      />
+
       {books.length === 0 && <Typography>No books in progress.</Typography>}
       {books.map(book => (
         <Box key={book.olid} mb={4}>
