@@ -6,6 +6,7 @@ import java.util.*;
 import com.example.reading.service.OpenLibraryService;
 import com.example.reading.repo.*;
 import com.example.reading.model.*;
+import com.example.reading.dto.*;
 import org.springframework.beans.factory.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,19 +25,18 @@ public class ApiController {
     @Autowired BookReadRepository bookReadRepo;
 
     @GetMapping("/search")
-    public Object search(@RequestParam String q){
+    public List<OLBookDto> search(@RequestParam String q){
         return ol.search(q);
     }
 
     @GetMapping("/lookup")
-    public Object searchByIsbn(@RequestParam String isbn) {
+    public OLBookDto searchByIsbn(@RequestParam String isbn) {
         return ol.searchByIsbn(isbn);
     }
 
     @GetMapping("/work/{olid}")
-    public Object work(@PathVariable String olid){
-    Map<String, Object> m = ol.getWork(olid);
-    return m;
+    public OLBookDetailsDto work(@PathVariable String olid){
+        return ol.getWork(olid);
     }
 
     @GetMapping("/books")

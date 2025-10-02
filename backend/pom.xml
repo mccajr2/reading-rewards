@@ -50,6 +50,29 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+                <plugin>
+                    <groupId>cz.habarta.typescript-generator</groupId>
+                    <artifactId>typescript-generator-maven-plugin</artifactId>
+                    <version>3.2.1263</version>
+                    <executions>
+                        <execution>
+                            <id>generate-typescript</id>
+                            <phase>process-classes</phase>
+                            <goals>
+                                <goal>generate</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                    <configuration>
+                        <classes>
+                            <class>com.example.reading.dto.OLBookDto</class>
+                            <class>com.example.reading.dto.OLBookDetailsDto</class>
+                        </classes>
+                        <outputFile>../frontend/src/dto/dto.d.ts</outputFile>
+                        <outputKind>module</outputKind>
+                        <jsonLibrary>jackson2</jsonLibrary>
+                    </configuration>
+                </plugin>
         </plugins>
     </build>
 </project>

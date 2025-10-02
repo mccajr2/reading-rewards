@@ -10,6 +10,7 @@ import Stack from '@mui/material/Stack';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
+import type { OLBookDetailsDto, OLBookDto } from '../dto/dto';
 
 
 export default function Search() {
@@ -19,9 +20,9 @@ export default function Search() {
   const [error, setError] = useState("");
 
   const [q, setQ] = useState('');
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<OLBookDto[]>([]);
   const [expanded, setExpanded] = useState<{ [key: number]: boolean }>({});
-  const [details, setDetails] = useState<{ [key: number]: any }>({});
+  const [details, setDetails] = useState<{ [key: number]: OLBookDetailsDto | undefined }>({});
   const [existingBooks, setExistingBooks] = useState<{ [olid: string]: any }>({});
 
   const API_URL = import.meta.env.VITE_API_URL;
@@ -42,19 +43,16 @@ export default function Search() {
 
   const search = async () => {
     const r = await fetch(`${API_URL}/search?q=` + encodeURIComponent(q));
-    const j = await r.json();
-    let docs = j.docs || [];
+    const books: OLBookDto[] = await r.json();
     // Move any existing book to top
-    docs = docs.sort((a: any, b: any) => {
-      const aOlid = (a.key || '').split('/').pop();
-      const bOlid = (b.key || '').split('/').pop();
-      const aExists = !!existingBooks[aOlid];
-      const bExists = !!existingBooks[bOlid];
+    const sorted = books.sort((a, b) => {
+      const aExists = a.olid && Object.prototype.hasOwnProperty.call(existingBooks, a.olid) && !!existingBooks[a.olid];
+      const bExists = b.olid && Object.prototype.hasOwnProperty.call(existingBooks, b.olid) && !!existingBooks[b.olid];
       if (aExists && !bExists) return -1;
       if (!aExists && bExists) return 1;
       return 0;
     });
-    setResults(docs);
+    setResults(sorted);
     setExpanded({});
     setDetails({});
   };
@@ -99,10 +97,11 @@ export default function Search() {
   const toggleExpand = async (index: number, doc: any) => {
     setExpanded(prev => ({ ...prev, [index]: !prev[index] }));
     if (!details[index] && !expanded[index]) {
-      const olid = (doc.key || '').split('/').pop();
+      const olid = doc.olid;
       const r = await fetch(`${API_URL}/work/${olid}`);
-      const j = await r.json();
-      setDetails(prev => ({ ...prev, [index]: j }));
+      const bookDetails: OLBookDetailsDto = await r.json();
+
+      setDetails(prev => ({ ...prev, [index]: bookDetails }));
     }
   };
 
@@ -144,11 +143,10 @@ export default function Search() {
               `${API_URL}/lookup?isbn=${isbnOrUpc}`
             );
             if (!response.ok) throw new Error(`Book not found for code ${isbnOrUpc}`);
-            const book = await response.json();
+            const book: OLBookDto = await response.json();
             setResults([book]);
             setExpanded({});
             setDetails({});
-            // setSelectedBook(book);
           } catch (lookupErr: any) {
             setError(lookupErr.message || "Lookup failed.");
           }
@@ -223,16 +221,19 @@ export default function Search() {
             />
             <Button variant="outlined" onClick={search}>Search</Button>
           </Stack>
-          <List>
+
+        </>
+      )}
+                <List>
             {results.map((r, i) => {
-              const olid = (r.key || '').split('/').pop();
-              const existing = existingBooks[olid];
+              const olid = r.olid;
+              const existing = olid && Object.prototype.hasOwnProperty.call(existingBooks, olid) ? existingBooks[olid] : undefined;
               return (
                 <ListItem key={i} sx={{ display: 'block', mb: 1, border: '1px solid #dee2e6', borderRadius: 1, background: '#fff' }}>
                   <Box display="flex" justifyContent="space-between" alignItems="center">
                     <Box>
                       <Typography variant="subtitle1" fontWeight="bold">{r.title}</Typography>
-                      <Typography variant="body2" color="text.secondary">{(r.author_name || []).join(', ')}</Typography>
+                      <Typography variant="body2" color="text.secondary">{(r.authors || []).join(', ')}</Typography>
                     </Box>
                     <Stack direction="row" spacing={1}>
                       <Button size="small" variant="contained" color="info" onClick={() => toggleExpand(i, r)}>
@@ -265,8 +266,8 @@ export default function Search() {
                     <Box mt={2} p={2} borderRadius={1} bgcolor="#f8f9fa" border={1} borderColor="#dee2e6">
                       <Box display="flex" alignItems="flex-start" gap={2}>
                         {/* Cover Art */}
-                        {Array.isArray(details[i].covers) && details[i].covers.length > 0 && (() => {
-                          const coverId = details[i].covers.find((id: number) => id !== -1);
+                        {Array.isArray(details[i].imageIds) && details[i].imageIds.length > 0 && (() => {
+                          const coverId = details[i].imageIds.find((id: number) => id !== -1);
                           return coverId ? (
                             <img
                               src={`https://covers.openlibrary.org/b/id/${coverId}-L.jpg`}
@@ -283,8 +284,8 @@ export default function Search() {
                               <Box textAlign="left">
                                 {typeof details[i].description === 'string'
                                   ? <span dangerouslySetInnerHTML={{ __html: details[i].description }} />
-                                  : details[i].description.value
-                                    ? <span dangerouslySetInnerHTML={{ __html: details[i].description.value }} />
+                                  : details[i].description
+                                    ? <span dangerouslySetInnerHTML={{ __html: details[i].description }} />
                                     : null}
                               </Box>
                             </Box>
@@ -297,8 +298,6 @@ export default function Search() {
               );
             })}
           </List>
-        </>
-      )}
     </Box>
   );
 }
