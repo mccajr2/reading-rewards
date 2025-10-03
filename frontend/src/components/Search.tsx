@@ -228,80 +228,80 @@ export default function Search() {
             />
             <Button variant="outlined" onClick={search}>Search</Button>
           </Stack>
-          <List>
-            {results.map((r, i) => {
-              const olid = r.olid;
-              const existing = existingBooks[olid];
-              return (
-                <ListItem key={i} sx={{ display: 'block', mb: 1, border: '1px solid #dee2e6', borderRadius: 1, background: '#fff' }}>
-                  <Box display="flex" justifyContent="space-between" alignItems="center">
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight="bold">{r.title}</Typography>
-                      <Typography variant="body2" color="text.secondary">{r.authors && r.authors.join(', ')}</Typography>
-                    </Box>
-                    <Stack direction="row" spacing={1}>
-                      <Button size="small" variant="contained" color="info" onClick={() => toggleExpand(i, r)}>
-                        {expanded[i] ? 'Hide Details' : 'Show Details'}
-                      </Button>
-                      {!existing && (
-                        <Button size="small" variant="contained" color="success" onClick={() => addBook(r)}>Add</Button>
-                      )}
-                      {existing && existing.inProgress && (
-                        <Button size="small" variant="contained" color="primary" onClick={() => window.location.href = '/readinglist'}>
-                          See in Reading list
-                        </Button>
-                      )}
-                      {existing && !existing.inProgress && (
-                        <Button size="small" variant="contained" color="warning" onClick={async () => {
-                          // Toggle inProgress and redirect
-                          await fetch(`${API_URL}/books`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ ...existing, inProgress: true })
-                          });
-                          window.location.href = '/readinglist';
-                        }}>
-                          Reread
-                        </Button>
-                      )}
-                    </Stack>
-                  </Box>
-                  {expanded[i] && details[i] && (
-                    <Box mt={2} p={2} borderRadius={1} bgcolor="#f8f9fa" border={1} borderColor="#dee2e6">
-                      <Box display="flex" alignItems="flex-start" gap={2}>
-                        {/* Cover Art */}
-                        {Array.isArray(details[i].coverIds) && details[i].coverIds.length > 0 && (() => {
-                          const coverId = details[i].coverIds.find((id: number) => id !== -1);
-                          return coverId ? (
-                            <img
-                              src={`https://covers.openlibrary.org/b/id/${coverId}-L.jpg`}
-                              alt="Book cover"
-                              style={{ maxWidth: '120px', maxHeight: '180px', borderRadius: '4px', marginRight: '8px' }}
-                            />
-                          ) : null;
-                        })()}
-                        {/* Description */}
-                        <Box flex={1}>
-                          {details[i].description && (
-                            <Box mb={2}>
-                              <Typography variant="subtitle2" fontWeight="bold">Description:</Typography>
-                              <Box textAlign="left">
-                                {details[i].description && (
-                                  <span dangerouslySetInnerHTML={{ __html: details[i].description }} />
-                                )}
-                              </Box>
-                            </Box>
-                          )}
-                        </Box>
-                      </Box>
-                    </Box>
-                  )}
-                </ListItem>
-              );
-            })}
-          </List>
         </>
       )}
+      <List>
+        {results.map((r, i) => {
+          const olid = r.olid;
+          const existing = existingBooks[olid];
+          return (
+            <ListItem key={i} sx={{ display: 'block', mb: 1, border: '1px solid #dee2e6', borderRadius: 1, background: '#fff' }}>
+              <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography variant="subtitle1" fontWeight="bold">{r.title}</Typography>
+                  <Typography variant="body2" color="text.secondary">{r.authors && r.authors.join(', ')}</Typography>
+                </Box>
+                <Stack direction="row" spacing={1}>
+                  <Button size="small" variant="contained" color="info" onClick={() => toggleExpand(i, r)}>
+                    {expanded[i] ? 'Hide Details' : 'Show Details'}
+                  </Button>
+                  {!existing && (
+                    <Button size="small" variant="contained" color="success" onClick={() => addBook(r)}>Add</Button>
+                  )}
+                  {existing && existing.inProgress && (
+                    <Button size="small" variant="contained" color="primary" onClick={() => window.location.href = '/readinglist'}>
+                      See in Reading list
+                    </Button>
+                  )}
+                  {existing && !existing.inProgress && (
+                    <Button size="small" variant="contained" color="warning" onClick={async () => {
+                      // Toggle inProgress and redirect
+                      await fetch(`${API_URL}/books`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ...existing, inProgress: true })
+                      });
+                      window.location.href = '/readinglist';
+                    }}>
+                      Reread
+                    </Button>
+                  )}
+                </Stack>
+              </Box>
+              {expanded[i] && details[i] && (
+                <Box mt={2} p={2} borderRadius={1} bgcolor="#f8f9fa" border={1} borderColor="#dee2e6">
+                  <Box display="flex" alignItems="flex-start" gap={2}>
+                    {/* Cover Art */}
+                    {Array.isArray(details[i].coverIds) && details[i].coverIds.length > 0 && (() => {
+                      const coverId = details[i].coverIds.find((id: number) => id !== -1);
+                      return coverId ? (
+                        <img
+                          src={`https://covers.openlibrary.org/b/id/${coverId}-L.jpg`}
+                          alt="Book cover"
+                          style={{ maxWidth: '120px', maxHeight: '180px', borderRadius: '4px', marginRight: '8px' }}
+                        />
+                      ) : null;
+                    })()}
+                    {/* Description */}
+                    <Box flex={1}>
+                      {details[i].description && (
+                        <Box mb={2}>
+                          <Typography variant="subtitle2" fontWeight="bold">Description:</Typography>
+                          <Box textAlign="left">
+                            {details[i].description && (
+                              <span dangerouslySetInnerHTML={{ __html: details[i].description }} />
+                            )}
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+                </Box>
+              )}
+            </ListItem>
+          );
+        })}
+      </List>
     </Box>
   );
 }
