@@ -63,7 +63,9 @@ public class ApiController {
     }
 
     @PostMapping("/books")
-    public Book saveBook(@RequestBody Book b) {
+    public Book saveBook(@RequestBody OpenLibraryBookDto dto) {
+        // Convert authors list to comma-separated string for Book entity
+        Book b = new Book(dto.olid, dto.title, dto.authors != null ? String.join(", ", dto.authors) : "");
         Book saved = bookRepo.save(b);
         BookRead br = new BookRead(saved);
         bookReadRepo.save(br);

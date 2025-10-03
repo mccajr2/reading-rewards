@@ -5,7 +5,6 @@ import org.springframework.web.client.RestTemplate;
 import java.util.*;
 import com.example.reading.dto.OpenLibraryBookDto;
 import com.example.reading.dto.OpenLibraryBookDetailsDto;
-import com.example.reading.dto.OpenLibraryBookDetailsDto;
 
 @Service
 public class OpenLibraryService {
@@ -41,41 +40,33 @@ public class OpenLibraryService {
         if (result == null || result.isEmpty()) return null;
         Map.Entry<String, Object> entry = result.entrySet().iterator().next();
         Map<String, Object> book = (Map<String, Object>) entry.getValue();
+
+        // Log table_of_contents if present
+        if (book.containsKey("table_of_contents")) {
+            System.out.println("[OpenLibraryService] table_of_contents found: " + book.get("table_of_contents"));
+        }
+
+        // Try to extract OLID from 'key' or 'identifiers.openlibrary'
         String olid = "";
-        if (book.containsKey("identifiers")) {
+        if (book.containsKey("key")) {
+            String key = book.get("key").toString();
+            if (key.startsWith("/books/")) {
+                olid = key.substring("/books/".length());
+            } else {
+                olid = key;
+            }
+        }
+        if (olid.isEmpty() && book.containsKey("identifiers")) {
             Map<String, Object> ids = (Map<String, Object>) book.get("identifiers");
             List<String> olids = ids.containsKey("openlibrary") ? (List<String>) ids.get("openlibrary") : Collections.emptyList();
             if (!olids.isEmpty()) {
                 olid = olids.get(0);
             }
         }
-        String title = (String) book.getOrDefault("title", "");
-        List<String> authors = new ArrayList<>();
-        if (book.containsKey("authors")) {
-            List<Map<String, Object>> authorList = (List<Map<String, Object>>) book.get("authors");
-            for (Map<String, Object> a : authorList) {
-                if (a != null && a.containsKey("name")) authors.add(a.get("name").toString());
-            }
-        }
-        String description = "";
-        if (book.containsKey("description")) {
-            Object descObj = book.get("description");
-            if (descObj instanceof String) {
-                description = (String) descObj;
-            } else if (descObj instanceof Map) {
-                Object val = ((Map<?, ?>) descObj).get("value");
-                if (val != null) description = val.toString();
-            }
-        }
-        List<Integer> coverIds = new ArrayList<>();
-        if (book.containsKey("covers")) {
-            List<Object> covers = (List<Object>) book.get("covers");
-            for (Object c : covers) {
-                if (c instanceof Integer) coverIds.add((Integer) c);
-                else if (c instanceof Number) coverIds.add(((Number) c).intValue());
-            }
-        }
-        return new OpenLibraryBookDetailsDto(olid, title, authors, description, coverIds);
+        if (olid.isEmpty()) return null;
+
+        // Use OLID to fetch work details
+        return getWork(olid);
     }
 
     @SuppressWarnings("unchecked")
@@ -110,9 +101,8 @@ public class OpenLibraryService {
                 for (Object refObj : authorRefs) {
                     if (refObj instanceof Map) {
                         Map<String, Object> ref = (Map<String, Object>) refObj;
-                        if (ref.containsKey("author")) {
-                            Map<String, Object> authorMap = (Map<String, Object>) ref.get("author");
-                            String authorKey = (String) authorMap.get("key");
+                        if (ref.containsKey("key")) {
+                            String authorKey = (String) ref.get("key");
                             // Fetch author name from OpenLibrary API
                             if (authorKey != null && !authorKey.isEmpty()) {
                                 try {

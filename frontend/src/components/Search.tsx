@@ -1,6 +1,5 @@
 
 import { useState, useEffect } from 'react';
-import type { OpenLibraryBookDto, OpenLibraryBookDetailsDto } from '../types/dto';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
@@ -12,6 +11,7 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
 import InfoBanner from './InfoBanner';
+import type { OpenLibraryBookDto, OpenLibraryBookDetailsDto } from '../types/dto';
 
 export default function Search() {
   const [tab, setTab] = useState(0);
@@ -57,9 +57,8 @@ export default function Search() {
     setDetails({});
   };
 
-  const addBook = async (doc: any) => {
-    const olid = (doc.key || '').split('/').pop();
-    const book = { olid, title: doc.title, authors: (doc.author_name || []).join(', ') };
+  const addBook = async (book: OpenLibraryBookDto) => {
+    const { olid, title, authors } = book;
     const chapterCountStr = window.prompt('How many chapters are in this book?');
     const chapterCount = chapterCountStr ? parseInt(chapterCountStr, 10) : 0;
     if (!chapterCount || isNaN(chapterCount) || chapterCount < 1) {
@@ -73,9 +72,9 @@ export default function Search() {
       bookOlid: olid
     }));
     console.log("Chapters to send:", chapters);
-    // Save book first
+    // Save book first (authors as array)
     const bookRes = await fetch(`${API_URL}/books`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(book)
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ olid, title, authors: Array.isArray(authors) ? authors : [authors] })
     });
     if (!bookRes.ok) {
       alert('Failed to add book.');
@@ -142,11 +141,10 @@ export default function Search() {
               `${API_URL}/lookup?isbn=${isbnOrUpc}`
             );
             if (!response.ok) throw new Error(`Book not found for code ${isbnOrUpc}`);
-            const book = await response.json();
+            const book: OpenLibraryBookDetailsDto = await response.json();
             setResults([book]);
-            setExpanded({});
-            setDetails({});
-            // setSelectedBook(book);
+            setExpanded({ 0: true });
+            setDetails({ 0: book });
           } catch (lookupErr: any) {
             setError(lookupErr.message || "Lookup failed.");
           }
