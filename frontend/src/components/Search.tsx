@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import type { OpenLibraryBookDto, OpenLibraryBookDetailsDto } from '../types/dto';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
@@ -19,9 +20,9 @@ export default function Search() {
   const [error, setError] = useState("");
 
   const [q, setQ] = useState('');
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<OpenLibraryBookDto[]>([]);
   const [expanded, setExpanded] = useState<{ [key: number]: boolean }>({});
-  const [details, setDetails] = useState<{ [key: number]: any }>({});
+  const [details, setDetails] = useState<{ [key: number]: OpenLibraryBookDetailsDto | undefined }>({});
   const [existingBooks, setExistingBooks] = useState<{ [olid: string]: any }>({});
 
   const API_URL = import.meta.env.VITE_API_URL;
@@ -42,19 +43,16 @@ export default function Search() {
 
   const search = async () => {
     const r = await fetch(`${API_URL}/search?q=` + encodeURIComponent(q));
-    const j = await r.json();
-    let docs = j.docs || [];
+    const docs: OpenLibraryBookDto[] = await r.json();
     // Move any existing book to top
-    docs = docs.sort((a: any, b: any) => {
-      const aOlid = (a.key || '').split('/').pop();
-      const bOlid = (b.key || '').split('/').pop();
-      const aExists = !!existingBooks[aOlid];
-      const bExists = !!existingBooks[bOlid];
+    const sorted = docs.sort((a, b) => {
+      const aExists = !!existingBooks[a.olid];
+      const bExists = !!existingBooks[b.olid];
       if (aExists && !bExists) return -1;
       if (!aExists && bExists) return 1;
       return 0;
     });
-    setResults(docs);
+    setResults(sorted);
     setExpanded({});
     setDetails({});
   };
@@ -96,12 +94,12 @@ export default function Search() {
     alert('Added book and chapters to reading list. Now click Reading List tab to add chapters or mark reads.');
   };
 
-  const toggleExpand = async (index: number, doc: any) => {
+  const toggleExpand = async (index: number, book: OpenLibraryBookDto) => {
     setExpanded(prev => ({ ...prev, [index]: !prev[index] }));
     if (!details[index] && !expanded[index]) {
-      const olid = (doc.key || '').split('/').pop();
+      const olid = book.olid;
       const r = await fetch(`${API_URL}/work/${olid}`);
-      const j = await r.json();
+      const j: OpenLibraryBookDetailsDto = await r.json();
       setDetails(prev => ({ ...prev, [index]: j }));
     }
   };
@@ -232,14 +230,14 @@ export default function Search() {
           </Stack>
           <List>
             {results.map((r, i) => {
-              const olid = (r.key || '').split('/').pop();
+              const olid = r.olid;
               const existing = existingBooks[olid];
               return (
                 <ListItem key={i} sx={{ display: 'block', mb: 1, border: '1px solid #dee2e6', borderRadius: 1, background: '#fff' }}>
                   <Box display="flex" justifyContent="space-between" alignItems="center">
                     <Box>
                       <Typography variant="subtitle1" fontWeight="bold">{r.title}</Typography>
-                      <Typography variant="body2" color="text.secondary">{(r.author_name || []).join(', ')}</Typography>
+                      <Typography variant="body2" color="text.secondary">{r.authors && r.authors.join(', ')}</Typography>
                     </Box>
                     <Stack direction="row" spacing={1}>
                       <Button size="small" variant="contained" color="info" onClick={() => toggleExpand(i, r)}>
@@ -272,8 +270,8 @@ export default function Search() {
                     <Box mt={2} p={2} borderRadius={1} bgcolor="#f8f9fa" border={1} borderColor="#dee2e6">
                       <Box display="flex" alignItems="flex-start" gap={2}>
                         {/* Cover Art */}
-                        {Array.isArray(details[i].covers) && details[i].covers.length > 0 && (() => {
-                          const coverId = details[i].covers.find((id: number) => id !== -1);
+                        {Array.isArray(details[i].coverIds) && details[i].coverIds.length > 0 && (() => {
+                          const coverId = details[i].coverIds.find((id: number) => id !== -1);
                           return coverId ? (
                             <img
                               src={`https://covers.openlibrary.org/b/id/${coverId}-L.jpg`}
@@ -288,11 +286,9 @@ export default function Search() {
                             <Box mb={2}>
                               <Typography variant="subtitle2" fontWeight="bold">Description:</Typography>
                               <Box textAlign="left">
-                                {typeof details[i].description === 'string'
-                                  ? <span dangerouslySetInnerHTML={{ __html: details[i].description }} />
-                                  : details[i].description.value
-                                    ? <span dangerouslySetInnerHTML={{ __html: details[i].description.value }} />
-                                    : null}
+                                {details[i].description && (
+                                  <span dangerouslySetInnerHTML={{ __html: details[i].description }} />
+                                )}
                               </Box>
                             </Box>
                           )}
