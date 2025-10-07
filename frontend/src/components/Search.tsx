@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
@@ -14,6 +15,7 @@ import InfoBanner from './InfoBanner';
 import type { OpenLibraryBookDto, OpenLibraryBookDetailsDto } from '../types/dto';
 
 export default function Search() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState(0);
   const [scanning, setScanning] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -90,7 +92,8 @@ export default function Search() {
       alert('Failed to add chapters.');
       return;
     }
-    alert('Added book and chapters to reading list. Now click Reading List tab to add chapters or mark reads.');
+  // Redirect to ReadingList and scroll to this book
+  navigate('/list', { state: { olid } });
   };
 
   const toggleExpand = async (index: number, book: OpenLibraryBookDto) => {
@@ -247,7 +250,7 @@ export default function Search() {
                     <Button size="small" variant="contained" color="success" onClick={() => addBook(r)}>Add</Button>
                   )}
                   {existing && existing.inProgress && (
-                    <Button size="small" variant="contained" color="primary" onClick={() => window.location.href = '/readinglist'}>
+                    <Button size="small" variant="contained" color="primary" onClick={() => navigate('/list', { state: { olid } })}>
                       See in Reading list
                     </Button>
                   )}

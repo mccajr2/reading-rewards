@@ -10,16 +10,19 @@ public class ChapterRead {
     private Long id;
     private String bookOlid;
     private int chapterIndex;
-    private LocalDateTime readAt;
-    private int credit; // cents
 
+    private boolean inProgress;
+    private int readCount;
+    private LocalDateTime readAt;
+    
     public ChapterRead(){}
-    public ChapterRead(String bookOlid,int chapterIndex,int credit){
-        this.bookOlid=bookOlid;this.chapterIndex=chapterIndex;this.readAt=LocalDateTime.now();this.credit=credit;
+    public ChapterRead(String bookOlid,int chapterIndex){
+        this.bookOlid=bookOlid;
+        this.chapterIndex=chapterIndex;
+        this.readAt=LocalDateTime.now();
     }
     public Long getId(){return id;}
     public String getBookOlid(){return bookOlid;}
     public int getChapterIndex(){return chapterIndex;}
     public LocalDateTime getReadAt(){return readAt;}
-    public int getCredit(){return credit;}
 }

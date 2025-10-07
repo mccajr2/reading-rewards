@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import List from '@mui/material/List';
@@ -14,6 +15,8 @@ declare global {
 }
 
 export default function ReadingList() {
+  const location = useLocation();
+  const scrollToOlid = location.state?.olid;
   // Refs for each book's chapter list div
   const chapterListRefs = React.useRef<{ [olid: string]: HTMLDivElement | null }>({});
 
@@ -44,7 +47,11 @@ export default function ReadingList() {
         }
       }
     });
-  }, [books, chapters, readChapters]);
+    // If redirected with an olid, scroll to that book
+    if (scrollToOlid && chapterListRefs.current[scrollToOlid]) {
+      chapterListRefs.current[scrollToOlid]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [books, chapters, readChapters, scrollToOlid]);
 
   const API_URL = import.meta.env.VITE_API_URL;
 

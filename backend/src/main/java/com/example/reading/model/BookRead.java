@@ -1,5 +1,7 @@
 package com.example.reading.model;
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.*;
 
 @Entity
@@ -15,6 +17,7 @@ public class BookRead {
 
     private boolean inProgress;
     private int readCount;
+    private LocalDateTime readAt;
 
     // constructors
     public BookRead() {}

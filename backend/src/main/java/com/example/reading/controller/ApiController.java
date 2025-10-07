@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import java.math.BigDecimal;
 
 @RestController
 @RequestMapping("/api")
@@ -27,6 +28,8 @@ public class ApiController {
     ChapterReadRepository readRepo;
     @Autowired
     BookReadRepository bookReadRepo;
+    @Autowired
+    RewardRepository rewardRepo;
 
     @GetMapping("/search")
     public List<OpenLibraryBookDto> search(@RequestParam String q) {
@@ -106,8 +109,11 @@ public class ApiController {
 
     @PostMapping("/books/{olid}/chapters/{index}/read")
     public ChapterRead markRead(@PathVariable String olid, @PathVariable int index) {
-        ChapterRead cr = new ChapterRead(olid, index, 100); // $1 => 100 cents
-        return readRepo.save(cr);
+        ChapterRead cr = new ChapterRead(olid, index);
+        ChapterRead saved = readRepo.save(cr);
+        Reward reward = new Reward(saved, BigDecimal.valueOf(1.00));
+        rewardRepo.save(reward);
+        return saved;
     }
 
     @DeleteMapping("/books/{olid}/chapters/{index}/read")
@@ -116,24 +122,65 @@ public class ApiController {
         if (reads.isEmpty())
             return ResponseEntity.notFound().build();
         ChapterRead mostRecent = reads.get(0);
+        // Delete associated reward if it exists
+        List<Reward> rewards = rewardRepo.findByTypeAndChapterRead(RewardType.EARN, mostRecent);
+        for (Reward r : rewards) {
+            rewardRepo.delete(r);
+        }
         readRepo.delete(mostRecent);
         return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/credits")
-    public Map<String, Object> credits() {
-        List<ChapterRead> all = readRepo.findAll();
-        int totalCents = all.stream().mapToInt(ChapterRead::getCredit).sum();
-        double dollars = totalCents / 100.0;
-        System.out.println("[CREDITS] Total cents: " + totalCents + ", dollars: " + dollars);
-        Map<String, Object> m = new HashMap<>();
-        m.put("cents", totalCents);
-        m.put("dollars", dollars);
-        return m;
     }
 
     @GetMapping("/history")
     public List<ChapterRead> history() {
         return readRepo.findAllByOrderByReadAtDesc();
+    }
+
+        // --- Rewards API ---
+
+    @GetMapping("/rewards/summary")
+    public Map<String, Object> getRewardsSummary() {
+        Double earned = rewardRepo.getTotalEarned();
+        Double paidOut = rewardRepo.getTotalPaidOut();
+        Double spent = rewardRepo.getTotalSpent();
+        double totalEarned = earned != null ? earned : 0.0;
+        double totalPaidOut = paidOut != null ? paidOut : 0.0;
+        double totalSpent = spent != null ? spent : 0.0;
+        double currentBalance = totalEarned - totalPaidOut - totalSpent;
+        Map<String, Object> m = new HashMap<>();
+        m.put("totalEarned", totalEarned);
+        m.put("totalPaidOut", totalPaidOut);
+        m.put("totalSpent", totalSpent);
+        m.put("currentBalance", currentBalance);
+        return m;
+    }
+
+    @GetMapping("/rewards")
+    public List<Reward> getAllRewards() {
+        return rewardRepo.findAll();
+    }
+
+    @PostMapping("/rewards/payout")
+    public Reward addPayout(@RequestParam double amount, @RequestParam(required = false) String note) {
+        Reward r = new Reward(RewardType.PAYOUT, BigDecimal.valueOf(amount), note);
+        return rewardRepo.save(r);
+    }
+
+    @PostMapping("/rewards/spend")
+    public Reward addSpend(@RequestParam double amount, @RequestParam String note) {
+        Reward r = new Reward(RewardType.SPEND, BigDecimal.valueOf(amount), note);
+        return rewardRepo.save(r);
+    }
+
+    // For admin/testing: add an earning event
+    @PostMapping("/rewards/earn")
+    public Reward addEarn(@RequestParam double amount, @RequestParam(required = false) String note,
+                         @RequestParam(required = false) Long chapterReadId) {
+        ChapterRead chapterRead = null;
+        if (chapterReadId != null) {
+            chapterRead = readRepo.findById(chapterReadId).orElse(null);
+        }
+        Reward r = new Reward(chapterRead, BigDecimal.valueOf(amount));
+        return rewardRepo.save(r);
     }
 }
