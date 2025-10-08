@@ -156,6 +156,12 @@ public class ApiController {
         if (reads.isEmpty())
             return ResponseEntity.notFound().build();
         ChapterRead mostRecent = reads.get(0);
+        // Delete all rewards referencing this ChapterRead (to avoid constraint
+        // violation)
+        List<Reward> rewards = rewardRepo.findByUserId(user.getId()).stream()
+                .filter(r -> mostRecent.getId().equals(r.getChapterReadId()))
+                .collect(Collectors.toList());
+        rewardRepo.deleteAll(rewards);
         readRepo.delete(mostRecent);
         return ResponseEntity.ok().build();
     }
@@ -209,5 +215,95 @@ public class ApiController {
             result.add(new BookReadProgressDto(br, book, readCount, readChapterIds));
         }
         return result;
+    }
+
+    // Returns all rewards for the current user, with nested info for EARN rewards
+    @GetMapping("/rewards")
+    public List<Map<String, Object>> getRewards() {
+        User user = getCurrentUser();
+        List<Reward> rewards = rewardRepo.findByUserId(user.getId());
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Reward reward : rewards) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", reward.getId());
+            m.put("type", reward.getType());
+            m.put("amount", reward.getAmount());
+            m.put("note", reward.getNote());
+            m.put("createdAt", reward.getCreatedAt());
+            // For EARN rewards, include chapter, book, and bookRead info
+            if (reward.getType() == RewardType.EARN && reward.getChapterRead() != null) {
+                ChapterRead cr = reward.getChapterRead();
+                m.put("chapterReadId", cr.getId());
+                m.put("completionDate", cr.getCompletionDate());
+                // Chapter info
+                Chapter chapter = cr.getChapter();
+                if (chapter != null) {
+                    Map<String, Object> chapterMap = new HashMap<>();
+                    chapterMap.put("id", chapter.getId());
+                    chapterMap.put("name", chapter.getName());
+                    chapterMap.put("chapterIndex", chapter.getChapterIndex());
+                    chapterMap.put("bookOlid", chapter.getBookOlid());
+                    chapterMap.put("createdAt", chapter.getCreatedAt());
+                    chapterMap.put("updatedAt", chapter.getUpdatedAt());
+                    m.put("chapter", chapterMap);
+                }
+                // BookRead info
+                BookRead bookRead = cr.getBookRead();
+                if (bookRead != null) {
+                    Map<String, Object> bookReadMap = new HashMap<>();
+                    bookReadMap.put("id", bookRead.getId());
+                    bookReadMap.put("startDate", bookRead.getStartDate());
+                    bookReadMap.put("endDate", bookRead.getEndDate());
+                    bookReadMap.put("inProgress", bookRead.getInProgress());
+                    // Book info
+                    Book book = bookRead.getBook();
+                    if (book != null) {
+                        Map<String, Object> bookMap = new HashMap<>();
+                        bookMap.put("olid", book.getOlid());
+                        bookMap.put("title", book.getTitle());
+                        bookMap.put("authors", book.getAuthors());
+                        bookReadMap.put("book", bookMap);
+                    }
+                    m.put("bookRead", bookReadMap);
+                }
+            }
+            result.add(m);
+        }
+        return result;
+    }
+
+    // Returns a summary of rewards for the current user
+    @GetMapping("/rewards/summary")
+    public Map<String, Object> getRewardsSummary() {
+        User user = getCurrentUser();
+        Double earned = rewardRepo.getTotalEarnedByUserId(user.getId());
+        Double paidOut = rewardRepo.getTotalPaidOutByUserId(user.getId());
+        Double spent = rewardRepo.getTotalSpentByUserId(user.getId());
+        double totalEarned = earned != null ? earned : 0.0;
+        double totalPaidOut = paidOut != null ? paidOut : 0.0;
+        double totalSpent = spent != null ? spent : 0.0;
+        double currentBalance = totalEarned - totalPaidOut - totalSpent;
+        Map<String, Object> m = new HashMap<>();
+        m.put("totalEarned", totalEarned);
+        m.put("totalPaidOut", totalPaidOut);
+        m.put("totalSpent", totalSpent);
+        m.put("currentBalance", currentBalance);
+        return m;
+    }
+
+    // Endpoint to spend rewards (creates a SPEND reward)
+    @PostMapping("/rewards/spend")
+    public ResponseEntity<?> spendReward(@RequestParam double amount, @RequestParam String note) {
+        User user = getCurrentUser();
+        if (amount <= 0) {
+            return ResponseEntity.badRequest().body("Amount must be positive");
+        }
+        Reward reward = new Reward();
+        reward.setType(RewardType.SPEND);
+        reward.setUserId(user.getId());
+        reward.setAmount(amount);
+        reward.setNote(note);
+        rewardRepo.save(reward);
+        return ResponseEntity.ok().build();
     }
 }
