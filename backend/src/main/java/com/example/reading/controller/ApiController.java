@@ -134,7 +134,17 @@ public class ApiController {
         cr.setChapterId(chapterId);
         cr.setUserId(user.getId());
         cr.setCompletionDate(java.time.LocalDateTime.now());
-        return readRepo.save(cr);
+        ChapterRead savedCr = readRepo.save(cr);
+
+        // Create a Reward of type EARN for this chapter read
+        Reward reward = new Reward();
+        reward.setType(RewardType.EARN);
+        reward.setUserId(user.getId());
+        reward.setChapterReadId(savedCr.getId());
+        reward.setAmount(1.0); // Set to 1.0 or your earning logic
+        rewardRepo.save(reward);
+
+        return savedCr;
     }
 
     @DeleteMapping("/books/{olid}/chapters/{chapterId}/read")

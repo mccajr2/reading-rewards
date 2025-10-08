@@ -1,12 +1,28 @@
 import { useEffect, useState } from 'react';
 import { Box, Paper, Typography, Stack, Button, TextField, List, ListItem, Divider } from '@mui/material';
 
+interface Chapter {
+  name: string;
+  chapterIndex: number;
+  bookOlid: string;
+}
+interface Book {
+  title: string;
+}
+interface BookRead {
+  book: Book;
+}
+interface ChapterRead {
+  chapter: Chapter;
+  bookRead: BookRead;
+}
 interface Reward {
   id: number;
   eventTime: string;
   type: 'EARN' | 'PAYOUT' | 'SPEND';
   amount: number;
   note?: string;
+  chapterRead?: ChapterRead;
 }
 
 export default function Rewards() {
@@ -111,7 +127,13 @@ export default function Rewards() {
             <ListItem key={r.id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
                 <Typography variant="body2" fontWeight={600}>{r.type}</Typography>
-                <Typography variant="caption" color="text.secondary">{r.note}</Typography>
+                {r.type === 'EARN' && r.chapterRead && r.chapterRead.chapter && r.chapterRead.bookRead && r.chapterRead.bookRead.book ? (
+                  <Typography variant="caption" color="text.secondary">
+                    {r.chapterRead.bookRead.book.title} — {r.chapterRead.chapter.name}
+                  </Typography>
+                ) : (
+                  <Typography variant="caption" color="text.secondary">{r.note}</Typography>
+                )}
               </Box>
               <Typography variant="body1" fontWeight={700} color={
                 r.type === 'EARN' ? 'success.main' : r.type === 'PAYOUT' ? 'primary.main' : 'warning.main'

@@ -91,6 +91,7 @@ CREATE TABLE rewards (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     type VARCHAR(10) NOT NULL CHECK (type IN ('EARN', 'PAYOUT', 'SPEND')),
     user_id UUID NOT NULL,
+    amount DOUBLE PRECISION NOT NULL DEFAULT 0.0,
     chapter_read_id UUID,
     note TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
