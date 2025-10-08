@@ -1,3 +1,4 @@
+
 package com.example.reading.controller;
 
 import org.springframework.web.bind.annotation.*;
@@ -320,5 +321,21 @@ public class ApiController {
         chapter.setName(newName.trim());
         chapterRepo.save(chapter);
         return ResponseEntity.ok(chapter);
+    }
+
+    // Create a new BookRead for an existing Book (for reread)
+    @PostMapping("/books/{olid}/reread")
+    public ResponseEntity<BookRead> rereadBook(@PathVariable String olid) {
+        User user = getCurrentUser();
+        Optional<Book> bookOpt = bookRepo.findById(olid);
+        if (bookOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        BookRead br = new BookRead();
+        br.setBookOlid(olid);
+        br.setUserId(user.getId());
+        br.setStartDate(java.time.LocalDateTime.now());
+        BookRead saved = bookReadRepo.save(br);
+        return ResponseEntity.ok(saved);
     }
 }

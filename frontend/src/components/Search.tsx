@@ -256,13 +256,13 @@ export default function Search() {
                   )}
                   {existing && !existing.inProgress && (
                     <Button size="small" variant="contained" color="warning" onClick={async () => {
-                      // Toggle inProgress and redirect
-                      await fetch(`${API_URL}/books`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ...existing, inProgress: true })
-                      });
-                      window.location.href = '/readinglist';
+                      // Call backend reread endpoint and redirect to reading list, scroll to this book
+                      const res = await fetch(`${API_URL}/books/${existing.olid}/reread`, { method: 'POST' });
+                      if (res.ok) {
+                        navigate('/list', { state: { newOlid: existing.olid } });
+                      } else {
+                        alert('Failed to start reread.');
+                      }
                     }}>
                       Reread
                     </Button>
