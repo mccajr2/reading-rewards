@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import Search from './components/Search';
 import ReadingList from './components/ReadingList';
 import History from './components/History';
 import Credits from './components/Credits';
+import Rewards from './components/Rewards';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Tabs from '@mui/material/Tabs';
@@ -13,8 +15,11 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { bruinsTheme } from './theme';
 
-export default function App() {
+
+function MainApp() {
   const KID_NAME = import.meta.env.VITE_KID_NAME;
+  const location = useLocation();
+  const navigate = useNavigate();
   useEffect(() => {
     if (KID_NAME) {
       document.title = `${KID_NAME}'s Reading Rewards`;
@@ -22,22 +27,12 @@ export default function App() {
       document.title = 'Reading Rewards';
     }
   }, [KID_NAME]);
-  const [view, setView] = useState<'search' | 'list' | 'history'>('search');
-  const [, setHasInProgress] = useState(false);
 
-  useEffect(() => {
-    const API_URL = import.meta.env.VITE_API_URL;
-
-    fetch(`${API_URL}/books`).then(r => r.ok ? r.json() : []).then(allBooks => {
-      if (Array.isArray(allBooks) && allBooks.some((b: any) => b.inProgress)) {
-        setHasInProgress(true);
-        setView('list');
-      } else {
-        setHasInProgress(false);
-        setView('search');
-      }
-    });
-  }, []);
+  // Tab value based on route
+  const tabValue =
+    location.pathname === '/list' ? 'list'
+      : location.pathname === '/history' ? 'history'
+        : 'search';
 
   return (
     <ThemeProvider theme={bruinsTheme}>
@@ -53,17 +48,15 @@ export default function App() {
 
         <Box sx={{ maxWidth: 1400, mx: 'auto', py: 3, pr: { xs: 2, sm: 28 }, px: 3 }}>
           <AppBar position="static" color="secondary" elevation={0} sx={{ borderRadius: 2, mb: 3 }}>
-            <Box sx={{
-              padding: 1
-            }} />
+            <Box sx={{ padding: 1 }} />
             <Toolbar
               sx={{
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 2, // optional: adds space between heading and tabs
-                minHeight: 120, // optional: gives more vertical space
+                gap: 2,
+                minHeight: 120,
               }}
             >
               <Typography
@@ -92,8 +85,10 @@ export default function App() {
                 rel="stylesheet"
               />
               <Tabs
-                value={view}
-                onChange={(_e, v) => setView(v)}
+                value={tabValue}
+                onChange={(_e, v) => {
+                  navigate(v === 'list' ? '/list' : v === 'history' ? '/history' : '/search');
+                }}
                 sx={{ minHeight: 48 }}
               >
                 <Tab label="Current Books" value="list" />
@@ -114,12 +109,24 @@ export default function App() {
               mb: 4,
             }}
           >
-            {view === 'search' && <Search />}
-            {view === 'list' && <ReadingList />}
-            {view === 'history' && <History />}
+            <Routes>
+              <Route path="/search" element={<Search />} />
+              <Route path="/list" element={<ReadingList />} />
+              <Route path="/history" element={<History />} />
+              <Route path="/rewards" element={<Rewards />} />
+              <Route path="*" element={<Search />} />
+            </Routes>
           </Box>
         </Box>
       </Box>
-    </ThemeProvider >
+    </ThemeProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <Router>
+      <MainApp />
+    </Router>
   );
 }

@@ -45,11 +45,10 @@ public class Reward {
     @Column(columnDefinition = "TEXT")
     private String note;
 
+    @Column(name = "amount", nullable = false)
+    private Double amount;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-
-    public enum RewardType {
-        EARN, PAYOUT, SPEND
-    }
 }

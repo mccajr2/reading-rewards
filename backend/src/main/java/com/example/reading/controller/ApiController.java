@@ -155,7 +155,7 @@ public class ApiController {
         User user = getCurrentUser();
         List<Reward> rewards = rewardRepo.findByUserId(user.getId());
         int totalCents = rewards.stream()
-                .filter(r -> r.getType() == Reward.RewardType.EARN)
+                .filter(r -> r.getType() == RewardType.EARN)
                 .mapToInt(r -> 100) // Placeholder: replace with actual amount if available
                 .sum();
         double dollars = totalCents / 100.0;
