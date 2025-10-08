@@ -9,35 +9,45 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "chapters", uniqueConstraints = {
-        @UniqueConstraint(columnNames = { "book_olid", "chapter_index" })
-})
+@Table(name = "users")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
-public class Chapter {
+public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "book_olid", nullable = false, length = 50)
-    private String bookOlid;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private UserRole role;
+
+    @Column(name = "parent_id")
+    private UUID parentId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "book_olid", insertable = false, updatable = false)
-    @JsonIgnoreProperties({ "chapters" })
-    private Book book;
+    @JoinColumn(name = "parent_id", insertable = false, updatable = false)
+    @JsonIgnoreProperties({ "children", "parent" })
+    private User parent;
 
-    @Column(nullable = false, length = 500)
-    private String name;
+    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
+    @JsonIgnoreProperties({ "parent", "children" })
+    private List<User> children;
 
-    @Column(name = "chapter_index", nullable = false)
-    private Integer chapterIndex;
+    @Column(unique = true)
+    private String email;
+
+    @Column(unique = true, length = 100)
+    private String username;
+
+    @Column(nullable = false)
+    private String password;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -46,4 +56,8 @@ public class Chapter {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    public enum UserRole {
+        PARENT, CHILD
+    }
 }

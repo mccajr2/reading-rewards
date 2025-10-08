@@ -11,32 +11,20 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "chapter_reads")
+@Table(name = "rewards")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
-public class ChapterRead {
+public class Reward {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "book_read_id", nullable = false)
-    private UUID bookReadId;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "book_read_id", insertable = false, updatable = false)
-    @JsonIgnoreProperties({ "book", "user" })
-    private BookRead bookRead;
-
-    @Column(name = "chapter_id", nullable = false)
-    private UUID chapterId;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "chapter_id", insertable = false, updatable = false)
-    @JsonIgnoreProperties({ "book" })
-    private Chapter chapter;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private RewardType type;
 
     @Column(name = "user_id", nullable = false)
     private UUID userId;
@@ -46,10 +34,22 @@ public class ChapterRead {
     @JsonIgnoreProperties({ "parent", "children", "password" })
     private User user;
 
-    @Column(name = "completion_date", nullable = false)
-    private LocalDateTime completionDate;
+    @Column(name = "chapter_read_id")
+    private UUID chapterReadId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "chapter_read_id", insertable = false, updatable = false)
+    @JsonIgnoreProperties({ "bookRead", "chapter", "user" })
+    private ChapterRead chapterRead;
+
+    @Column(columnDefinition = "TEXT")
+    private String note;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    public enum RewardType {
+        EARN, PAYOUT, SPEND
+    }
 }
