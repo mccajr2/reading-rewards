@@ -1,6 +1,7 @@
 
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import List from '@mui/material/List';
@@ -16,6 +17,9 @@ declare global {
 
 // BookRead-aware ReadingList
 export default function ReadingList() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const newOlid = location.state?.newOlid;
   // Refs for each bookRead's chapter list div
   const chapterListRefs = React.useRef<{ [bookReadId: string]: HTMLDivElement | null }>({});
 
@@ -28,6 +32,17 @@ export default function ReadingList() {
   const [readDates, setReadDates] = useState<{ [bookReadId: string]: { [chapterId: string]: string } }>({});
 
   useEffect(() => {
+    // If a new book was just added, scroll to it
+    if (newOlid) {
+      const br = bookReads.find(b => b.bookOlid === newOlid);
+      if (br && chapterListRefs.current[br.id]) {
+        setTimeout(() => {
+          chapterListRefs.current[br.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+      }
+      return;
+    }
+    // Default: scroll to next unread chapter for each book
     bookReads.forEach(br => {
       const chaptersArr = chapters[br.bookOlid] || [];
       let targetChapter: any = chaptersArr.find((c: any) => !readChapters[br.id]?.has(c.id));
@@ -47,7 +62,7 @@ export default function ReadingList() {
         }
       }
     });
-  }, [bookReads, chapters, readChapters]);
+  }, [bookReads, chapters, readChapters, newOlid]);
 
   const API_URL = import.meta.env.VITE_API_URL;
 
@@ -126,7 +141,8 @@ export default function ReadingList() {
       if (allChapters.length > 0 && allRead) {
         if (window.confirm('Congratulations! You finished the book. Mark as finished and allow rereading?')) {
           await fetch(`${API_URL}/books/${bookOlid}/finish`, { method: 'POST' });
-          window.location.reload();
+          // Redirect to history and pass completed book OLID in state
+          navigate('/history', { state: { completedOlid: bookOlid } });
         }
       }
     } else if (isMostRecent) {

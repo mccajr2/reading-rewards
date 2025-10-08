@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import Typography from '@mui/material/Typography';
@@ -8,6 +9,9 @@ import InfoBanner from './InfoBanner';
 export default function History() {
   const [books, setBooks] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const location = useLocation();
+  const completedOlid = location.state?.completedOlid;
+  const bookRefs = useRef<{ [olid: string]: HTMLDivElement | null }>({});
   useEffect(() => {
     const API_URL = import.meta.env.VITE_API_URL;
     fetch(`${API_URL}/books`)
@@ -23,6 +27,15 @@ export default function History() {
       .catch(e => setError(e.message));
   }, []);
 
+  // Scroll to completed book if present
+  useEffect(() => {
+    if (completedOlid && bookRefs.current[completedOlid]) {
+      setTimeout(() => {
+        bookRefs.current[completedOlid]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+    }
+  }, [books, completedOlid]);
+
   // Only show books not in progress
   const finishedBooks = books.filter((b: any) => !b.inProgress);
   // Group by olid
@@ -33,17 +46,19 @@ export default function History() {
 
   return (
     <Box>
-
       <InfoBanner
         title="The trophy case!"
         description="Every book you've finished lives here. Look back at all your completed 
           reads and see how far you've come. Champion reader! 🏅"
       />
-
       {error && <Typography color="error" sx={{ mb: 2 }}>Error: {error}</Typography>}
       <List>
         {Object.values(grouped).map((book: any, i: number) => (
-          <ListItem key={i} sx={{ border: '1px solid #dee2e6', borderRadius: 1, mb: 1, background: '#fff' }}>
+          <ListItem
+            key={i}
+            ref={el => { bookRefs.current[book.olid] = el as HTMLDivElement | null; }}
+            sx={{ border: '1px solid #dee2e6', borderRadius: 1, mb: 1, background: '#fff' }}
+          >
             <Typography variant="body1" sx={{ fontWeight: 500 }}>
               {book.title}{book.readCount > 1 ? ` x${book.readCount}` : ''}
               <Typography component="span" variant="body2" color="text.secondary"> ({book.authors})</Typography>

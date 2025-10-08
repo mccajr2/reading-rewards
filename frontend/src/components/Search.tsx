@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
@@ -14,6 +15,7 @@ import InfoBanner from './InfoBanner';
 import type { OpenLibraryBookDto, OpenLibraryBookDetailsDto } from '../types/dto';
 
 export default function Search() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState(0);
   const [scanning, setScanning] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -90,7 +92,8 @@ export default function Search() {
       alert('Failed to add chapters.');
       return;
     }
-    alert('Added book and chapters to reading list. Now click Reading List tab to add chapters or mark reads.');
+    // Redirect to reading list and scroll to the new book
+    navigate('/list', { state: { newOlid: olid } });
   };
 
   const toggleExpand = async (index: number, book: OpenLibraryBookDto) => {
