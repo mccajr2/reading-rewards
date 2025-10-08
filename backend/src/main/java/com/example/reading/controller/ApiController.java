@@ -306,4 +306,19 @@ public class ApiController {
         rewardRepo.save(reward);
         return ResponseEntity.ok().build();
     }
+
+    // Update chapter name by id
+    @PutMapping("/chapters/{id}")
+    public ResponseEntity<Chapter> renameChapter(@PathVariable UUID id, @RequestBody Map<String, String> body) {
+        Optional<Chapter> opt = chapterRepo.findById(id);
+        if (opt.isEmpty())
+            return ResponseEntity.notFound().build();
+        Chapter chapter = opt.get();
+        String newName = body.get("name");
+        if (newName == null || newName.trim().isEmpty())
+            return ResponseEntity.badRequest().build();
+        chapter.setName(newName.trim());
+        chapterRepo.save(chapter);
+        return ResponseEntity.ok(chapter);
+    }
 }

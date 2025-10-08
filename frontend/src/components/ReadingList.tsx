@@ -1,6 +1,11 @@
 
 
 import React, { useState, useEffect } from 'react';
+import EditIcon from '@mui/icons-material/Edit';
+// Inline edit state for chapter names
+type EditState = {
+  [chapterId: string]: { editing: boolean; value: string }
+};
 import { useNavigate, useLocation } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -17,6 +22,32 @@ declare global {
 
 // BookRead-aware ReadingList
 export default function ReadingList() {
+  // Inline edit state for chapter names
+  const [editChapter, setEditChapter] = useState<EditState>({});
+  // Track which chapter row is hovered
+  const [hoveredChapterId, setHoveredChapterId] = useState<string | null>(null);
+
+  // Save chapter name to backend
+  const saveChapterName = async (chapterId: string, newName: string, bookOlid: string) => {
+    const res = await fetch(`${API_URL}/chapters/${chapterId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName })
+    });
+    if (res.ok) {
+      // Update local state
+      setChapters(prev => {
+        const updated = { ...prev };
+        for (const olid in updated) {
+          updated[olid] = updated[olid].map((c: any) =>
+            c.id === chapterId ? { ...c, name: newName } : c
+          );
+        }
+        return updated;
+      });
+      setEditChapter(prev => ({ ...prev, [chapterId]: { editing: false, value: newName } }));
+    }
+  };
   const navigate = useNavigate();
   const location = useLocation();
   const newOlid = location.state?.newOlid;
@@ -198,6 +229,9 @@ export default function ReadingList() {
                   const isRead = readSet.has(chapter.id);
                   const isCurrent = chapter.id === currentChapterId;
                   const isMostRecent = isRead && chapter.id === mostRecentReadId;
+                  const edit = editChapter[chapter.id]?.editing;
+                  const editValue = editChapter[chapter.id]?.value ?? chapter.name ?? chapter.title ?? `Chapter ${chapter.chapterIndex}`;
+                  const isHovered = hoveredChapterId === chapter.id;
                   return (
                     <ListItem
                       key={chapter.id}
@@ -210,7 +244,12 @@ export default function ReadingList() {
                         fontStyle: isRead ? 'italic' : undefined,
                         py: 1,
                         borderBottom: '1px solid #eee',
+                        position: 'relative',
+                        // Remove pointer from row
+                        cursor: 'default',
                       }}
+                      onMouseEnter={() => setHoveredChapterId(chapter.id)}
+                      onMouseLeave={() => setHoveredChapterId(null)}
                     >
                       {(isCurrent && !isRead) || isMostRecent ? (
                         <Checkbox
@@ -221,15 +260,47 @@ export default function ReadingList() {
                       ) : (
                         <Box sx={{ width: '2em', display: 'inline-block' }} />
                       )}
-                      <Box>
-                        <Typography component="span">
-                          {chapter.name || chapter.title || `Chapter ${chapter.chapterIndex}`}
-                          {isRead && dateMap[chapter.id] && (
-                            <Typography component="span" sx={{ ml: 2, fontSize: '0.9em', color: '#666' }}>
-                              ({dateMap[chapter.id]})
+                      <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+                        {edit ? (
+                          <>
+                            <input
+                              value={editValue}
+                              onChange={e => setEditChapter(prev => ({ ...prev, [chapter.id]: { editing: true, value: e.target.value } }))}
+                              onBlur={() => saveChapterName(chapter.id, editValue, br.bookOlid)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  (e.target as HTMLInputElement).blur();
+                                } else if (e.key === 'Escape') {
+                                  setEditChapter(prev => ({ ...prev, [chapter.id]: { editing: false, value: chapter.name } }));
+                                }
+                              }}
+                              style={{ fontSize: '1em', minWidth: 120 }}
+                              autoFocus
+                            />
+                          </>
+                        ) : (
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Typography
+                              component="span"
+                              sx={{ userSelect: 'text' }}
+                            >
+                              {chapter.name || chapter.title || `Chapter ${chapter.chapterIndex}`}
                             </Typography>
-                          )}
-                        </Typography>
+                            {isHovered && (
+                              <EditIcon
+                                fontSize="small"
+                                sx={{ ml: 1, color: '#888', opacity: 0.7, cursor: 'pointer' }}
+                                onClick={() => setEditChapter(prev => ({ ...prev, [chapter.id]: { editing: true, value: chapter.name ?? chapter.title ?? `Chapter ${chapter.chapterIndex}` } }))}
+                                titleAccess="Rename chapter"
+                              />
+                            )}
+                          </Box>
+                        )}
+                        {isRead && dateMap[chapter.id] && (
+                          <Typography component="span" sx={{ ml: 2, fontSize: '0.9em', color: '#666' }}>
+                            ({dateMap[chapter.id]})
+                          </Typography>
+                        )}
                       </Box>
                     </ListItem>
                   );
