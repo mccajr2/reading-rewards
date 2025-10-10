@@ -218,11 +218,24 @@ public class ApiController {
         return result;
     }
 
-    // Returns all rewards for the current user, with nested info for EARN rewards
+    // Returns paginated rewards for the current user, with nested info for EARN rewards
     @GetMapping("/rewards")
-    public List<Map<String, Object>> getRewards() {
+    public Map<String, Object> getRewards(
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "pageSize", required = false, defaultValue = "10") int pageSize) {
         User user = getCurrentUser();
-        List<Reward> rewards = rewardRepo.findByUserId(user.getId());
+        List<Reward> allRewards = rewardRepo.findByUserId(user.getId());
+        // Sort rewards by createdAt descending (most recent first)
+        allRewards.sort((a, b) -> {
+            if (a.getCreatedAt() == null && b.getCreatedAt() == null) return 0;
+            if (a.getCreatedAt() == null) return 1;
+            if (b.getCreatedAt() == null) return -1;
+            return b.getCreatedAt().compareTo(a.getCreatedAt());
+        });
+        int totalCount = allRewards.size();
+        int fromIndex = Math.max(0, Math.min((page - 1) * pageSize, totalCount));
+        int toIndex = Math.max(0, Math.min(fromIndex + pageSize, totalCount));
+        List<Reward> rewards = allRewards.subList(fromIndex, toIndex);
         List<Map<String, Object>> result = new ArrayList<>();
         for (Reward reward : rewards) {
             Map<String, Object> m = new HashMap<>();
@@ -270,7 +283,10 @@ public class ApiController {
             }
             result.add(m);
         }
-        return result;
+        Map<String, Object> response = new HashMap<>();
+        response.put("rewards", result);
+        response.put("totalCount", totalCount);
+        return response;
     }
 
     // Returns a summary of rewards for the current user

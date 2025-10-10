@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from 'react';
-import { Box, Paper, Typography, Stack, Button, TextField, List, ListItem, Divider } from '@mui/material';
-
+import { Box, Paper, Typography, Stack, Button, TextField, List, ListItem, Divider, Pagination } from '@mui/material';
+ 
 interface Book {
     olid: string;
     title: string;
@@ -34,6 +34,9 @@ export default function Rewards() {
     const API_URL = import.meta.env.VITE_API_URL;
     const [summary, setSummary] = useState({ totalEarned: 0, totalPaidOut: 0, totalSpent: 0, currentBalance: 0 });
     const [rewards, setRewards] = useState<Reward[]>([]);
+    const [page, setPage] = useState(1);
+    const [pageSize] = useState(10);
+    const [totalCount, setTotalCount] = useState(0);
     const [payout, setPayout] = useState('');
     const [spend, setSpend] = useState('');
     const [spendNote, setSpendNote] = useState('');
@@ -43,11 +46,11 @@ export default function Rewards() {
         const r = await fetch(`${API_URL}/rewards/summary`);
         setSummary(await r.json());
     };
-    const fetchRewards = async () => {
-        const r = await fetch(`${API_URL}/rewards`);
+    const fetchRewards = async (pageNum = page) => {
+        const r = await fetch(`${API_URL}/rewards?page=${pageNum}&pageSize=${pageSize}`);
         const data = await r.json();
-        // Map backend response to frontend Reward type
-        setRewards(data.map((rw: any) => {
+        // Expecting { rewards: [...], totalCount: number }
+        setRewards((data.rewards || data).map((rw: any) => {
             let reward: Reward = {
                 id: rw.id,
                 type: rw.type,
@@ -59,12 +62,18 @@ export default function Rewards() {
             if (rw.bookRead) reward.bookRead = rw.bookRead;
             return reward;
         }));
+        setTotalCount(data.totalCount ?? (data.rewards ? data.rewards.length : data.length));
     };
 
     useEffect(() => {
         fetchSummary();
-        fetchRewards();
+        fetchRewards(1);
+        setPage(1);
     }, []);
+
+    useEffect(() => {
+        fetchRewards(page);
+    }, [page, pageSize]);
 
     const handlePayout = async () => {
     if (!payout || isNaN(Number(payout))) return;
@@ -87,6 +96,8 @@ export default function Rewards() {
     if (window.updateCredits) window.updateCredits();
     setLoading(false);
     };
+
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
     return (
         <Box maxWidth={600} mx="auto" mt={4}>
@@ -143,29 +154,37 @@ export default function Rewards() {
             <Paper elevation={2} sx={{ p: 2, borderRadius: 2 }}>
                 <Typography variant="h6" mb={2}>Reward History</Typography>
                 <List>
-                    {[...rewards]
-                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                        .map(r => (
-                            <ListItem key={r.id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Box>
-                                    <Typography variant="body2" fontWeight={600}>{r.type}</Typography>
-                                    {r.type === 'EARN' && r.bookRead && r.bookRead.book && r.chapter ? (
-                                        <Typography variant="caption" color="text.secondary">
-                                            {r.bookRead.book.title} — {r.chapter.name}
-                                        </Typography>
-                                    ) : (
-                                        <Typography variant="caption" color="text.secondary">{r.note}</Typography>
-                                    )}
-                                </Box>
-                                <Typography variant="body1" fontWeight={700} color={
-                                    r.type === 'EARN' ? 'success.main' : r.type === 'PAYOUT' ? 'primary.main' : 'warning.main'
-                                }>
-                                    {r.type === 'PAYOUT' ? '-' : r.type === 'SPEND' ? '-' : '+'}${r.amount.toFixed(2)}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">{new Date(r.createdAt).toLocaleString()}</Typography>
-                            </ListItem>
-                        ))}
+                    {rewards.map(r => (
+                        <ListItem key={r.id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Box>
+                                <Typography variant="body2" fontWeight={600}>{r.type}</Typography>
+                                {r.type === 'EARN' && r.bookRead && r.bookRead.book && r.chapter ? (
+                                    <Typography variant="caption" color="text.secondary">
+                                        {r.bookRead.book.title} — {r.chapter.name}
+                                    </Typography>
+                                ) : (
+                                    <Typography variant="caption" color="text.secondary">{r.note}</Typography>
+                                )}
+                            </Box>
+                            <Typography variant="body1" fontWeight={700} color={
+                                r.type === 'EARN' ? 'success.main' : r.type === 'PAYOUT' ? 'primary.main' : 'warning.main'
+                            }>
+                                {r.type === 'PAYOUT' ? '-' : r.type === 'SPEND' ? '-' : '+'}${r.amount.toFixed(2)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">{new Date(r.createdAt).toLocaleString()}</Typography>
+                        </ListItem>
+                    ))}
                 </List>
+                {totalPages > 1 && (
+                    <Box display="flex" justifyContent="center" mt={2}>
+                        <Pagination
+                            count={totalPages}
+                            page={page}
+                            onChange={(_, value) => setPage(value)}
+                            color="primary"
+                        />
+                    </Box>
+                )}
             </Paper>
         </Box>
     );
