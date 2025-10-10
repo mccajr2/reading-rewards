@@ -1,3 +1,9 @@
+// Add TS declaration for window.codeReader
+declare global {
+  interface Window {
+    codeReader?: any;
+  }
+}
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -120,6 +126,8 @@ export default function Search() {
       ]);
 
       const codeReader = new BrowserMultiFormatReader(hints);
+    // Store codeReader globally so Stop Scanner can access and reset it
+    window.codeReader = codeReader;
 
       const constraints = { video: { facingMode: "environment" } as MediaTrackConstraints };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -206,6 +214,10 @@ export default function Search() {
                       .forEach((track) => track.stop());
                     videoElement.srcObject = null;
                   }
+                    // Also reset the codeReader if it exists
+                    if (window.codeReader && typeof window.codeReader.reset === 'function') {
+                      window.codeReader.reset();
+                    }
                   setScanning(false);
                 }}
               >
