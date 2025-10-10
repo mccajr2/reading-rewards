@@ -1,8 +1,9 @@
-
 package com.example.reading.controller;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.*;
+
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.UUID;
@@ -65,9 +66,15 @@ public class ApiController {
                 map.put("authors", book.getAuthors());
                 map.put("inProgress", Boolean.TRUE.equals(br.getInProgress()));
                 map.put("readCount", 0);
+                map.put("endDate", LocalDateTime.MIN);
                 return map;
             });
             m.put("readCount", (int) m.get("readCount") + 1);
+            LocalDateTime currentEndDate = (LocalDateTime) m.get("endDate");
+            LocalDateTime brEndDate = br.getEndDate();
+            if (brEndDate != null) {
+                m.put("endDate", currentEndDate.isAfter(brEndDate) ? currentEndDate : brEndDate);
+            }
         }
         return new ArrayList<>(bookMap.values());
     }
@@ -330,5 +337,27 @@ public class ApiController {
         br.setStartDate(java.time.LocalDateTime.now());
         BookRead saved = bookReadRepo.save(br);
         return ResponseEntity.ok(saved);
+    }
+    // Delete a BookRead and all associated ChapterReads and Rewards for the current user
+    @DeleteMapping("/bookreads/{bookReadId}")
+    @Transactional
+    public ResponseEntity<?> deleteBookRead(@PathVariable UUID bookReadId) {
+        User user = getCurrentUser();
+        Optional<BookRead> bookReadOpt = bookReadRepo.findById(bookReadId);
+        if (bookReadOpt.isEmpty() || !user.getId().equals(bookReadOpt.get().getUserId())) {
+            return ResponseEntity.notFound().build();
+        }
+        // Delete all ChapterReads for this BookRead
+        List<ChapterRead> chapterReads = readRepo.findByBookReadId(bookReadId);
+        for (ChapterRead cr : chapterReads) {
+            // Delete all rewards referencing this ChapterRead
+            List<Reward> rewards = rewardRepo.findByUserIdAndChapterRead(user.getId(), cr);
+            rewardRepo.deleteAll(rewards);
+        }
+        readRepo.deleteAll(chapterReads);
+        // Optionally, delete rewards not tied to chapterReads (if any)
+        // Finally, delete the BookRead
+        bookReadRepo.deleteById(bookReadId);
+        return ResponseEntity.ok().build();
     }
 }

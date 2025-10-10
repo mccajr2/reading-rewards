@@ -15,6 +15,8 @@ import Checkbox from '@mui/material/Checkbox';
 import InfoBanner from './InfoBanner';
 import Avatar from '@mui/material/Avatar';
 import LinearProgress from '@mui/material/LinearProgress';
+import IconButton from '@mui/material/IconButton';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 declare global {
   interface Window {
@@ -219,10 +221,10 @@ export default function ReadingList() {
     <Box>
       <InfoBanner
         title="Your active books!"
-        description="Check off each chapter as you finish it and watch your reading rewards add up.\nFind the chapter with the checkbox—that's your next mission! 💰"
+        description="Check off each chapter as you finish it and watch your reading rewards add up. Find the chapter with the checkbox—that's your next mission! 💰"
       />
       {bookReads.length === 0 && <Typography>No books in progress.</Typography>}
-      {bookReads.map(br => {
+  {bookReads.map(br => {
         const book = booksByGoogleBookId[br.googleBookId] || {};
         const chaptersArr = chapters[br.googleBookId] || [];
         const readSet = readChapters[br.id] || new Set();
@@ -245,7 +247,6 @@ export default function ReadingList() {
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
                 <Typography variant="h6" fontWeight="bold" sx={{ mr: 2 }}>
                   {book.title}
-                  {book.readCount > 1 ? ` x${book.readCount}` : ''}
                   <Typography component="span" variant="body2" color="text.secondary"> ({book.authors})</Typography>
                 </Typography>
                 {totalChapters > 0 && (
@@ -254,6 +255,22 @@ export default function ReadingList() {
                     <Typography variant="body2" color="text.secondary" sx={{ minWidth: 32, textAlign: 'right' }}>{percent}%</Typography>
                   </Box>
                 )}
+                <IconButton
+                  aria-label="Delete book"
+                  color="default"
+                  sx={{ ml: 1, color: '#888', '&:hover': { color: '#d32f2f', backgroundColor: '#f5f5f5' } }}
+                  onClick={async () => {
+                    if (!window.confirm('Are you sure you want to delete this book and all its progress?')) return;
+                    const res = await fetch(`${API_URL}/bookreads/${br.id}`, { method: 'DELETE' });
+                    if (res.ok) {
+                      setBookReads(prev => prev.filter(b => b.id !== br.id));
+                    } else {
+                      alert('Failed to delete book.');
+                    }
+                  }}
+                >
+                  <DeleteIcon />
+                </IconButton>
               </Box>
               <Box
                 sx={{ maxHeight: 320, overflowY: 'auto', borderRadius: 1, border: '1px solid #dee2e6', background: '#fff', mt: 1 }}
