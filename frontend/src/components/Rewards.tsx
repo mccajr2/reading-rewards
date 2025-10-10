@@ -143,26 +143,28 @@ export default function Rewards() {
             <Paper elevation={2} sx={{ p: 2, borderRadius: 2 }}>
                 <Typography variant="h6" mb={2}>Reward History</Typography>
                 <List>
-                    {rewards.map(r => (
-                        <ListItem key={r.id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Box>
-                                <Typography variant="body2" fontWeight={600}>{r.type}</Typography>
-                                {r.type === 'EARN' && r.bookRead && r.bookRead.book && r.chapter ? (
-                                    <Typography variant="caption" color="text.secondary">
-                                        {r.bookRead.book.title} — {r.chapter.name}
-                                    </Typography>
-                                ) : (
-                                    <Typography variant="caption" color="text.secondary">{r.note}</Typography>
-                                )}
-                            </Box>
-                            <Typography variant="body1" fontWeight={700} color={
-                                r.type === 'EARN' ? 'success.main' : r.type === 'PAYOUT' ? 'primary.main' : 'warning.main'
-                            }>
-                                {r.type === 'PAYOUT' ? '-' : r.type === 'SPEND' ? '-' : '+'}${r.amount.toFixed(2)}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">{new Date(r.createdAt).toLocaleString()}</Typography>
-                        </ListItem>
-                    ))}
+                    {[...rewards]
+                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                        .map(r => (
+                            <ListItem key={r.id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Box>
+                                    <Typography variant="body2" fontWeight={600}>{r.type}</Typography>
+                                    {r.type === 'EARN' && r.bookRead && r.bookRead.book && r.chapter ? (
+                                        <Typography variant="caption" color="text.secondary">
+                                            {r.bookRead.book.title} — {r.chapter.name}
+                                        </Typography>
+                                    ) : (
+                                        <Typography variant="caption" color="text.secondary">{r.note}</Typography>
+                                    )}
+                                </Box>
+                                <Typography variant="body1" fontWeight={700} color={
+                                    r.type === 'EARN' ? 'success.main' : r.type === 'PAYOUT' ? 'primary.main' : 'warning.main'
+                                }>
+                                    {r.type === 'PAYOUT' ? '-' : r.type === 'SPEND' ? '-' : '+'}${r.amount.toFixed(2)}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">{new Date(r.createdAt).toLocaleString()}</Typography>
+                            </ListItem>
+                        ))}
                 </List>
             </Paper>
         </Box>
