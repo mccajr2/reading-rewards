@@ -12,7 +12,7 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
 import InfoBanner from './InfoBanner';
-import type { OpenLibraryBookDto, OpenLibraryBookDetailsDto } from '../types/dto';
+import type { BookSummaryDto } from '../types/dto';
 
 export default function Search() {
   const navigate = useNavigate();
@@ -21,10 +21,11 @@ export default function Search() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const [q, setQ] = useState('');
-  const [results, setResults] = useState<OpenLibraryBookDto[]>([]);
+  const [title, setTitle] = useState('');
+  const [author, setAuthor] = useState('');
+  const [results, setResults] = useState<BookSummaryDto[]>([]);
   const [expanded, setExpanded] = useState<{ [key: number]: boolean }>({});
-  const [details, setDetails] = useState<{ [key: number]: OpenLibraryBookDetailsDto | undefined }>({});
+  const [details, setDetails] = useState<{ [key: number]: BookSummaryDto | undefined }>({});
   const [existingBooks, setExistingBooks] = useState<{ [olid: string]: any }>({});
 
   const API_URL = import.meta.env.VITE_API_URL;
@@ -44,12 +45,15 @@ export default function Search() {
   }, []);
 
   const search = async () => {
-    const r = await fetch(`${API_URL}/search?q=` + encodeURIComponent(q));
-    const docs: OpenLibraryBookDto[] = await r.json();
+    const params = new URLSearchParams();
+    if (title) params.append('title', title);
+    if (author) params.append('author', author);
+    const r = await fetch(`${API_URL}/search?` + params.toString());
+    const docs: BookSummaryDto[] = await r.json();
     // Move any existing book to top
     const sorted = docs.sort((a, b) => {
-      const aExists = !!existingBooks[a.olid];
-      const bExists = !!existingBooks[b.olid];
+      const aExists = !!existingBooks[a.googleBookId];
+      const bExists = !!existingBooks[b.googleBookId];
       if (aExists && !bExists) return -1;
       if (!aExists && bExists) return 1;
       return 0;
@@ -59,8 +63,7 @@ export default function Search() {
     setDetails({});
   };
 
-  const addBook = async (book: OpenLibraryBookDto) => {
-    const { olid, title, authors } = book;
+  const addBook = async (book: BookSummaryDto) => {
     const chapterCountStr = window.prompt('How many chapters are in this book?');
     const chapterCount = chapterCountStr ? parseInt(chapterCountStr, 10) : 0;
     if (!chapterCount || isNaN(chapterCount) || chapterCount < 1) {
@@ -71,19 +74,19 @@ export default function Search() {
     const chapters = Array.from({ length: chapterCount }, (_, idx) => ({
       chapterIndex: idx + 1,
       name: `Chapter ${idx + 1}`,
-      bookOlid: olid
+      googleBookId: book.googleBookId
     }));
     console.log("Chapters to send:", chapters);
     // Save book first (authors as array)
     const bookRes = await fetch(`${API_URL}/books`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ olid, title, authors: Array.isArray(authors) ? authors : [authors] })
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ googleBookId: book.googleBookId, title: book.title, authors: Array.isArray(book.authors) ? book.authors : [book.authors], description: book.description, thumbnailUrl: book.thumbnailUrl })
     });
     if (!bookRes.ok) {
       alert('Failed to add book.');
       return;
     }
     // Save chapters
-    const chaptersRes = await fetch(`${API_URL}/books/${olid}/chapters`, {
+    const chaptersRes = await fetch(`${API_URL}/books/${book.googleBookId}/chapters`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(chapters)
     });
     const chaptersResText = await chaptersRes.text();
@@ -93,16 +96,13 @@ export default function Search() {
       return;
     }
     // Redirect to reading list and scroll to the new book
-    navigate('/list', { state: { newOlid: olid } });
+    navigate('/list', { state: { newGoogleBookId: book.googleBookId } });
   };
 
-  const toggleExpand = async (index: number, book: OpenLibraryBookDto) => {
+  const toggleExpand = async (index: number, book: BookSummaryDto) => {
     setExpanded(prev => ({ ...prev, [index]: !prev[index] }));
     if (!details[index] && !expanded[index]) {
-      const olid = book.olid;
-      const r = await fetch(`${API_URL}/work/${olid}`);
-      const j: OpenLibraryBookDetailsDto = await r.json();
-      setDetails(prev => ({ ...prev, [index]: j }));
+      setDetails(prev => ({ ...prev, [index]: book }));
     }
   };
 
@@ -141,13 +141,18 @@ export default function Search() {
           try {
             const API_URL = import.meta.env.VITE_API_URL;
             const response = await fetch(
-              `${API_URL}/lookup?isbn=${isbnOrUpc}`
+              `${API_URL}/search?isbn=${isbnOrUpc}`
             );
             if (!response.ok) throw new Error(`Book not found for code ${isbnOrUpc}`);
-            const book: OpenLibraryBookDetailsDto = await response.json();
-            setResults([book]);
-            setExpanded({ 0: true });
-            setDetails({ 0: book });
+            const books: BookSummaryDto[] = await response.json();
+            const book = books[0];
+            if (book) {
+              setResults([book]);
+              setExpanded({ 0: true });
+              setDetails({ 0: book });
+            } else {
+              setError("Book not found for code " + isbnOrUpc);
+            }
           } catch (lookupErr: any) {
             setError(lookupErr.message || "Lookup failed.");
           }
@@ -220,21 +225,29 @@ export default function Search() {
         <>
           <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
             <TextField
-              value={q}
-              onChange={e => setQ(e.target.value)}
-              placeholder="Search books (Open Library)"
-              onKeyDown={e => { if (e.key === 'Enter') search(); }}
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Title"
+              onKeyDown={e => { if (e.key === 'Enter' && (title || author)) search(); }}
               size="small"
               sx={{ flex: 1 }}
             />
-            <Button variant="outlined" onClick={search}>Search</Button>
+            <TextField
+              value={author}
+              onChange={e => setAuthor(e.target.value)}
+              placeholder="Author"
+              onKeyDown={e => { if (e.key === 'Enter' && (title || author)) search(); }}
+              size="small"
+              sx={{ flex: 1 }}
+            />
+            <Button variant="outlined" onClick={search} disabled={!title && !author}>Search</Button>
           </Stack>
         </>
       )}
       <List>
         {results.map((r, i) => {
-          const olid = r.olid;
-          const existing = existingBooks[olid];
+          const googleBookId = r.googleBookId;
+          const existing = existingBooks[googleBookId];
           return (
             <ListItem key={i} sx={{ display: 'block', mb: 1, border: '1px solid #dee2e6', borderRadius: 1, background: '#fff' }}>
               <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -273,16 +286,13 @@ export default function Search() {
                 <Box mt={2} p={2} borderRadius={1} bgcolor="#f8f9fa" border={1} borderColor="#dee2e6">
                   <Box display="flex" alignItems="flex-start" gap={2}>
                     {/* Cover Art */}
-                    {Array.isArray(details[i].coverIds) && details[i].coverIds.length > 0 && (() => {
-                      const coverId = details[i].coverIds.find((id: number) => id !== -1);
-                      return coverId ? (
-                        <img
-                          src={`https://covers.openlibrary.org/b/id/${coverId}-L.jpg`}
-                          alt="Book cover"
-                          style={{ maxWidth: '120px', maxHeight: '180px', borderRadius: '4px', marginRight: '8px' }}
-                        />
-                      ) : null;
-                    })()}
+                    {details[i].thumbnailUrl && (
+                      <img
+                        src={details[i].thumbnailUrl}
+                        alt="Book cover"
+                        style={{ maxWidth: '128px', maxHeight: '200px', borderRadius: '4px', marginRight: '8px' }}
+                      />
+                    )}
                     {/* Description */}
                     <Box flex={1}>
                       {details[i].description && (
