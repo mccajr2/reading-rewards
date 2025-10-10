@@ -5,13 +5,14 @@ import ListItem from '@mui/material/ListItem';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import InfoBanner from './InfoBanner';
+import Avatar from '@mui/material/Avatar';
 
 export default function History() {
   const [books, setBooks] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const location = useLocation();
-  const completedOlid = location.state?.completedOlid;
-  const bookRefs = useRef<{ [olid: string]: HTMLDivElement | null }>({});
+  const completedGoogleBookId = location.state?.completedGoogleBookId;
+  const bookRefs = useRef<{ [googleBookId: string]: HTMLDivElement | null }>({});
   useEffect(() => {
     const API_URL = import.meta.env.VITE_API_URL;
     fetch(`${API_URL}/books`)
@@ -29,18 +30,18 @@ export default function History() {
 
   // Scroll to completed book if present
   useEffect(() => {
-    if (completedOlid && bookRefs.current[completedOlid]) {
+    if (completedGoogleBookId && bookRefs.current[completedGoogleBookId]) {
       setTimeout(() => {
-        bookRefs.current[completedOlid]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        bookRefs.current[completedGoogleBookId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 300);
     }
-  }, [books, completedOlid]);
+  }, [books, completedGoogleBookId]);
 
   // Only show books not in progress
   const finishedBooks = books.filter((b: any) => !b.inProgress);
-  // Group by olid
+  // Group by googleBookId
   const grouped = finishedBooks.reduce((acc: any, book: any) => {
-    acc[book.olid] = book;
+    acc[book.googleBookId] = book;
     return acc;
   }, {});
 
@@ -56,13 +57,18 @@ export default function History() {
         {Object.values(grouped).map((book: any, i: number) => (
           <ListItem
             key={i}
-            ref={el => { bookRefs.current[book.olid] = el as HTMLDivElement | null; }}
-            sx={{ border: '1px solid #dee2e6', borderRadius: 1, mb: 1, background: '#fff' }}
+            ref={el => { bookRefs.current[book.googleBookId] = el as HTMLDivElement | null; }}
+            sx={{ border: '1px solid #dee2e6', borderRadius: 1, mb: 1, background: '#fff', display: 'flex', alignItems: 'center' }}
           >
-            <Typography variant="body1" sx={{ fontWeight: 500 }}>
-              {book.title}{book.readCount > 1 ? ` x${book.readCount}` : ''}
-              <Typography component="span" variant="body2" color="text.secondary"> ({book.authors})</Typography>
-            </Typography>
+            {book.thumbnailUrl && (
+              <Avatar src={book.thumbnailUrl} alt={book.title} variant="square" sx={{ width: 48, height: 72, mr: 2 }} />
+            )}
+            <Box>
+              <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                {book.title}{book.readCount > 1 ? ` x${book.readCount}` : ''}
+                <Typography component="span" variant="body2" color="text.secondary"> ({book.authors})</Typography>
+              </Typography>
+            </Box>
           </ListItem>
         ))}
       </List>

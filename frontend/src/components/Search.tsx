@@ -26,7 +26,7 @@ export default function Search() {
   const [results, setResults] = useState<BookSummaryDto[]>([]);
   const [expanded, setExpanded] = useState<{ [key: number]: boolean }>({});
   const [details, setDetails] = useState<{ [key: number]: BookSummaryDto | undefined }>({});
-  const [existingBooks, setExistingBooks] = useState<{ [olid: string]: any }>({});
+  const [existingBooks, setExistingBooks] = useState<{ [googleBookId: string]: any }>({});
 
   const API_URL = import.meta.env.VITE_API_URL;
 
@@ -36,8 +36,8 @@ export default function Search() {
       const r = await fetch(`${API_URL}/books`);
       if (r.ok) {
         const books = await r.json();
-        const map: { [olid: string]: any } = {};
-        books.forEach((b: any) => { map[b.olid] = b; });
+        const map: { [googleBookId: string]: any } = {};
+        books.forEach((b: any) => { map[b.googleBookId] = b; });
         setExistingBooks(map);
       }
     };
@@ -270,9 +270,9 @@ export default function Search() {
                   {existing && !existing.inProgress && (
                     <Button size="small" variant="contained" color="warning" onClick={async () => {
                       // Call backend reread endpoint and redirect to reading list, scroll to this book
-                      const res = await fetch(`${API_URL}/books/${existing.olid}/reread`, { method: 'POST' });
+                      const res = await fetch(`${API_URL}/books/${existing.googleBookId}/reread`, { method: 'POST' });
                       if (res.ok) {
-                        navigate('/list', { state: { newOlid: existing.olid } });
+                        navigate('/list', { state: { newGoogleBookId: existing.googleBookId } });
                       } else {
                         alert('Failed to start reread.');
                       }

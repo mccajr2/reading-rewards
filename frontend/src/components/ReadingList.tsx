@@ -13,6 +13,8 @@ import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import Checkbox from '@mui/material/Checkbox';
 import InfoBanner from './InfoBanner';
+import Avatar from '@mui/material/Avatar';
+import LinearProgress from '@mui/material/LinearProgress';
 
 declare global {
   interface Window {
@@ -126,11 +128,26 @@ export default function ReadingList() {
       setChapters(chaptersObj);
       // Use readChapterIds from backend for each BookRead
       const readObj: { [bookReadId: string]: Set<string> } = {};
+      const readDatesObj: { [bookReadId: string]: { [chapterId: string]: string } } = {};
+      // Fetch chapter read dates for each BookRead
       for (const br of bookReadsArr) {
         readObj[br.id] = new Set(br.readChapterIds || []);
+        // Fetch chapterreads for this BookRead to get completion dates
+        const crRes = await fetch(`${API_URL}/bookreads/${br.id}/chapterreads`);
+        if (crRes.ok) {
+          const chapterReads = await crRes.json();
+          readDatesObj[br.id] = {};
+          chapterReads.forEach((cr: any) => {
+            if (cr.chapterId && cr.completionDate) {
+              readDatesObj[br.id][cr.chapterId] = new Date(cr.completionDate).toLocaleDateString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric'
+              });
+            }
+          });
+        }
       }
       setReadChapters(readObj);
-      // (Optional) If you want to keep readDates, you can still fetch chapterreads per BookRead as before
+      setReadDates(readDatesObj);
     };
     fetchList();
   }, []);
@@ -215,99 +232,116 @@ export default function ReadingList() {
         // Find most recent read chapter
         const readIds = chaptersArr.filter((c: any) => readSet.has(c.id)).map((c: any) => c.id);
         const mostRecentReadId = readIds.length > 0 ? readIds[readIds.length - 1] : null;
+        // Calculate progress
+        const totalChapters = chaptersArr.length;
+        const readCount = readSet.size;
+        const percent = totalChapters > 0 ? Math.round((readCount / totalChapters) * 100) : 0;
         return (
-          <Box key={br.id} mb={4}>
-            <Typography variant="h6" fontWeight="bold">
-              {book.title}
-              {book.readCount > 1 ? ` x${book.readCount}` : ''}
-              <Typography component="span" variant="body2" color="text.secondary"> ({book.authors})</Typography>
-            </Typography>
-            <Box
-              sx={{ maxHeight: 320, overflowY: 'auto', borderRadius: 1, border: '1px solid #dee2e6', background: '#fff', mt: 1 }}
-              ref={el => { chapterListRefs.current[br.id] = el as HTMLDivElement | null; }}
-            >
-              <List disablePadding>
-                {chaptersArr.map((chapter: any) => {
-                  const isRead = readSet.has(chapter.id);
-                  const isCurrent = chapter.id === currentChapterId;
-                  const isMostRecent = isRead && chapter.id === mostRecentReadId;
-                  const edit = editChapter[chapter.id]?.editing;
-                  const editValue = editChapter[chapter.id]?.value ?? chapter.name ?? chapter.title ?? `Chapter ${chapter.chapterIndex}`;
-                  const isHovered = hoveredChapterId === chapter.id;
-                  return (
-                    <ListItem
-                      key={chapter.id}
-                      data-chapter={chapter.chapterIndex}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        color: isRead ? '#888' : undefined,
-                        textDecoration: isRead ? 'line-through' : undefined,
-                        fontStyle: isRead ? 'italic' : undefined,
-                        py: 1,
-                        borderBottom: '1px solid #eee',
-                        position: 'relative',
-                        // Remove pointer from row
-                        cursor: 'default',
-                      }}
-                      onMouseEnter={() => setHoveredChapterId(chapter.id)}
-                      onMouseLeave={() => setHoveredChapterId(null)}
-                    >
-                      {(isCurrent && !isRead) || isMostRecent ? (
-                        <Checkbox
-                          checked={isRead}
-                          onChange={() => handleCheck(br.id, br.googleBookId, chapter, isRead, isMostRecent)}
-                          sx={{ mr: 2 }}
-                        />
-                      ) : (
-                        <Box sx={{ width: '2em', display: 'inline-block' }} />
-                      )}
-                      <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
-                        {edit ? (
-                          <>
-                            <input
-                              value={editValue}
-                              onChange={e => setEditChapter(prev => ({ ...prev, [chapter.id]: { editing: true, value: e.target.value } }))}
-                              onBlur={() => saveChapterName(chapter.id, editValue)}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') {
-                                  (e.target as HTMLInputElement).blur();
-                                } else if (e.key === 'Escape') {
-                                  setEditChapter(prev => ({ ...prev, [chapter.id]: { editing: false, value: chapter.name } }));
-                                }
-                              }}
-                              style={{ fontSize: '1em', minWidth: 120 }}
-                              autoFocus
-                            />
-                          </>
+          <Box key={br.id} mb={4} sx={{ display: 'flex', alignItems: 'flex-start' }}>
+            {book.thumbnailUrl && (
+              <Avatar src={book.thumbnailUrl} alt={book.title} variant="square" sx={{ width: 48, height: 72, mr: 2 }} />
+            )}
+            <Box sx={{ flex: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                <Typography variant="h6" fontWeight="bold" sx={{ mr: 2 }}>
+                  {book.title}
+                  {book.readCount > 1 ? ` x${book.readCount}` : ''}
+                  <Typography component="span" variant="body2" color="text.secondary"> ({book.authors})</Typography>
+                </Typography>
+                {totalChapters > 0 && (
+                  <Box sx={{ minWidth: 120, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                    <LinearProgress variant="determinate" value={percent} sx={{ height: 10, borderRadius: 5, flex: 1, mr: 1 }} />
+                    <Typography variant="body2" color="text.secondary" sx={{ minWidth: 32, textAlign: 'right' }}>{percent}%</Typography>
+                  </Box>
+                )}
+              </Box>
+              <Box
+                sx={{ maxHeight: 320, overflowY: 'auto', borderRadius: 1, border: '1px solid #dee2e6', background: '#fff', mt: 1 }}
+                ref={el => { chapterListRefs.current[br.id] = el as HTMLDivElement | null; }}
+              >
+                <List disablePadding>
+                  {chaptersArr.map((chapter: any) => {
+                    const isRead = readSet.has(chapter.id);
+                    const isCurrent = chapter.id === currentChapterId;
+                    const isMostRecent = isRead && chapter.id === mostRecentReadId;
+                    const edit = editChapter[chapter.id]?.editing;
+                    const editValue = editChapter[chapter.id]?.value ?? chapter.name ?? chapter.title ?? `Chapter ${chapter.chapterIndex}`;
+                    const isHovered = hoveredChapterId === chapter.id;
+                    return (
+                      <ListItem
+                        key={chapter.id}
+                        data-chapter={chapter.chapterIndex}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          color: isRead ? '#888' : undefined,
+                          textDecoration: isRead ? 'line-through' : undefined,
+                          fontStyle: isRead ? 'italic' : undefined,
+                          py: 1,
+                          borderBottom: '1px solid #eee',
+                          position: 'relative',
+                          // Remove pointer from row
+                          cursor: 'default',
+                        }}
+                        onMouseEnter={() => setHoveredChapterId(chapter.id)}
+                        onMouseLeave={() => setHoveredChapterId(null)}
+                      >
+                        {(isCurrent && !isRead) || isMostRecent ? (
+                          <Checkbox
+                            checked={isRead}
+                            onChange={() => handleCheck(br.id, br.googleBookId, chapter, isRead, isMostRecent)}
+                            sx={{ mr: 2 }}
+                          />
                         ) : (
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Typography
-                              component="span"
-                              sx={{ userSelect: 'text' }}
-                            >
-                              {chapter.name || chapter.title || `Chapter ${chapter.chapterIndex}`}
-                            </Typography>
-                            {isHovered && (
-                              <EditIcon
-                                fontSize="small"
-                                sx={{ ml: 1, color: '#888', opacity: 0.7, cursor: 'pointer' }}
-                                onClick={() => setEditChapter(prev => ({ ...prev, [chapter.id]: { editing: true, value: chapter.name ?? chapter.title ?? `Chapter ${chapter.chapterIndex}` } }))}
-                                titleAccess="Rename chapter"
+                          <Box sx={{ width: '2em', display: 'inline-block' }} />
+                        )}
+                        <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+                          {edit ? (
+                            <>
+                              <input
+                                value={editValue}
+                                onChange={e => setEditChapter(prev => ({ ...prev, [chapter.id]: { editing: true, value: e.target.value } }))}
+                                onBlur={() => saveChapterName(chapter.id, editValue)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') {
+                                    (e.target as HTMLInputElement).blur();
+                                  } else if (e.key === 'Escape') {
+                                    setEditChapter(prev => ({ ...prev, [chapter.id]: { editing: false, value: chapter.name } }));
+                                  }
+                                }}
+                                style={{ fontSize: '1em', minWidth: 120 }}
+                                autoFocus
                               />
-                            )}
-                          </Box>
-                        )}
-                        {isRead && dateMap[chapter.id] && (
-                          <Typography component="span" sx={{ ml: 2, fontSize: '0.9em', color: '#666' }}>
-                            ({dateMap[chapter.id]})
-                          </Typography>
-                        )}
-                      </Box>
-                    </ListItem>
-                  );
-                })}
-              </List>
+                            </>
+                          ) : (
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Typography
+                                component="span"
+                                sx={{ userSelect: 'text' }}
+                              >
+                                {chapter.name || chapter.title || `Chapter ${chapter.chapterIndex}`}
+                              </Typography>
+                              {isHovered && (
+                                <EditIcon
+                                  fontSize="small"
+                                  sx={{ ml: 1, color: '#888', opacity: 0.7, cursor: 'pointer' }}
+                                  onClick={() => setEditChapter(prev => ({ ...prev, [chapter.id]: { editing: true, value: chapter.name ?? chapter.title ?? `Chapter ${chapter.chapterIndex}` } }))}
+                                  titleAccess="Rename chapter"
+                                />
+                              )}
+                            </Box>
+                          )}
+                          {isRead && dateMap[chapter.id] && (
+                            <Typography component="span" sx={{ ml: 2, fontSize: '0.9em', color: '#666' }}>
+                              ({dateMap[chapter.id]})
+                            </Typography>
+                          )}
+                        </Box>
+                      </ListItem>
+                    );
+                  })}
+                </List>
+              </Box>
             </Box>
           </Box>
         );
