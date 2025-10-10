@@ -28,45 +28,50 @@ CREATE TABLE users (
 
 CREATE INDEX idx_users_parent_id ON users(parent_id);
 
+
 -- Books table
 CREATE TABLE books (
-    olid VARCHAR(50) PRIMARY KEY,
+    google_book_id VARCHAR(50) PRIMARY KEY,
     title VARCHAR(500) NOT NULL,
+    description TEXT,
+    thumbnail_url VARCHAR(1000),
     authors TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+
 -- Chapters table
 CREATE TABLE chapters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    book_olid VARCHAR(50) NOT NULL,
+    google_book_id VARCHAR(50) NOT NULL,
     name VARCHAR(500) NOT NULL,
     chapter_index INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_book FOREIGN KEY (book_olid) REFERENCES books(olid) ON DELETE CASCADE,
-    CONSTRAINT unique_book_chapter_index UNIQUE (book_olid, chapter_index)
+    CONSTRAINT fk_book FOREIGN KEY (google_book_id) REFERENCES books(google_book_id) ON DELETE CASCADE,
+    CONSTRAINT unique_book_chapter_index UNIQUE (google_book_id, chapter_index)
 );
 
-CREATE INDEX idx_chapters_book_olid ON chapters(book_olid);
+CREATE INDEX idx_chapters_google_book_id ON chapters(google_book_id);
+
 
 -- Book reads table
 CREATE TABLE book_reads (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    book_olid VARCHAR(50) NOT NULL,
+    google_book_id VARCHAR(50) NOT NULL,
     user_id UUID NOT NULL,
     start_date TIMESTAMP NOT NULL,
     end_date TIMESTAMP,
     in_progress BOOLEAN GENERATED ALWAYS AS (end_date IS NULL) STORED,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_book_read_book FOREIGN KEY (book_olid) REFERENCES books(olid) ON DELETE CASCADE,
+    CONSTRAINT fk_book_read_book FOREIGN KEY (google_book_id) REFERENCES books(google_book_id) ON DELETE CASCADE,
     CONSTRAINT fk_book_read_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_book_reads_user_id ON book_reads(user_id);
-CREATE INDEX idx_book_reads_book_olid ON book_reads(book_olid);
+CREATE INDEX idx_book_reads_google_book_id ON book_reads(google_book_id);
 CREATE INDEX idx_book_reads_in_progress ON book_reads(in_progress) WHERE in_progress = true;
 
 -- Chapter reads table

@@ -6,7 +6,7 @@ import org.springframework.http.*;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.UUID;
-import com.example.reading.service.OpenLibraryService;
+import com.example.reading.service.GoogleBooksService;
 import com.example.reading.repo.*;
 import com.example.reading.model.*;
 import com.example.reading.dto.*;
@@ -19,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ApiController {
 
     @Autowired
-    OpenLibraryService ol;
+    GoogleBooksService googleBooksService;
     @Autowired
     BookRepository bookRepo;
     @Autowired
@@ -42,18 +42,8 @@ public class ApiController {
     }
 
     @GetMapping("/search")
-    public List<OpenLibraryBookDto> search(@RequestParam String q) {
-        return ol.search(q);
-    }
-
-    @GetMapping("/lookup")
-    public OpenLibraryBookDetailsDto searchByIsbn(@RequestParam String isbn) {
-        return ol.searchByIsbn(isbn);
-    }
-
-    @GetMapping("/work/{olid}")
-    public OpenLibraryBookDetailsDto work(@PathVariable String olid) {
-        return ol.getWork(olid);
+    public List<BookSummaryDto> search(@RequestParam(required = false) String title, @RequestParam(required = false) String author, @RequestParam(required = false) String isbn) {
+        return googleBooksService.search(title, author, isbn);
     }
 
     @GetMapping("/books")
@@ -65,12 +55,13 @@ public class ApiController {
             Book book = br.getBook();
             if (book == null)
                 continue;
-            String olid = book.getOlid();
-            Map<String, Object> m = bookMap.computeIfAbsent(olid, k -> {
+            String googleBookId = book.getGoogleBookId();
+            Map<String, Object> m = bookMap.computeIfAbsent(googleBookId, k -> {
                 Map<String, Object> map = new HashMap<>();
-                map.put("olid", book.getOlid());
+                map.put("googleBookId", book.getGoogleBookId());
                 map.put("title", book.getTitle());
-                // Use getAuthors() which returns List<String>
+                map.put("description", book.getDescription());
+                map.put("thumbnailUrl", book.getThumbnailUrl());
                 map.put("authors", book.getAuthors());
                 map.put("inProgress", Boolean.TRUE.equals(br.getInProgress()));
                 map.put("readCount", 0);
@@ -82,29 +73,31 @@ public class ApiController {
     }
 
     @PostMapping("/books")
-    public Book saveBook(@RequestBody OpenLibraryBookDto dto) {
+    public Book saveBook(@RequestBody BookSummaryDto dto) {
         User user = getCurrentUser();
         Book b = new Book();
-        b.setOlid(dto.olid);
-        b.setTitle(dto.title);
-        b.setAuthors(dto.authors != null ? dto.authors : new ArrayList<>());
+        b.setGoogleBookId(dto.getGoogleBookId()); // DTO field may still be 'olid' for now
+        b.setTitle(dto.getTitle());
+        b.setDescription(dto.getDescription());
+        b.setThumbnailUrl(dto.getThumbnailUrl());
+        b.setAuthors(dto.getAuthors() != null ? dto.getAuthors() : new ArrayList<>());
         Book saved = bookRepo.save(b);
         BookRead br = new BookRead();
-        br.setBookOlid(saved.getOlid());
+        br.setGoogleBookId(saved.getGoogleBookId());
         br.setUserId(user.getId());
         br.setStartDate(java.time.LocalDateTime.now());
         bookReadRepo.save(br);
         return saved;
     }
 
-    @PostMapping("/books/{olid}/finish")
+    @PostMapping("/books/{googleBookId}/finish")
     @Transactional
-    public ResponseEntity<?> finishBook(@PathVariable String olid) {
+    public ResponseEntity<?> finishBook(@PathVariable String googleBookId) {
         User user = getCurrentUser();
         List<BookRead> bookReads = bookReadRepo.findByUserId(user.getId());
         boolean found = false;
         for (BookRead br : bookReads) {
-            if (olid.equals(br.getBookOlid()) && Boolean.TRUE.equals(br.getInProgress())) {
+            if (googleBookId.equals(br.getGoogleBookId()) && Boolean.TRUE.equals(br.getInProgress())) {
                 br.setEndDate(java.time.LocalDateTime.now());
                 bookReadRepo.save(br);
                 found = true;
@@ -113,17 +106,17 @@ public class ApiController {
         return found ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
     }
 
-    @PostMapping("/books/{olid}/chapters")
-    public List<Chapter> saveChapters(@PathVariable String olid, @RequestBody List<Chapter> chapters) {
-        chapterRepo.deleteByBookOlid(olid);
+    @PostMapping("/books/{googleBookId}/chapters")
+    public List<Chapter> saveChapters(@PathVariable String googleBookId, @RequestBody List<Chapter> chapters) {
+        chapterRepo.deleteByGoogleBookId(googleBookId);
         for (Chapter c : chapters)
-            c.setBookOlid(olid);
+            c.setGoogleBookId(googleBookId);
         return chapterRepo.saveAll(chapters);
     }
 
-    @GetMapping("/books/{olid}/chapters")
-    public List<Chapter> getChapters(@PathVariable String olid) {
-        return chapterRepo.findByBookOlidOrderByChapterIndex(olid);
+    @GetMapping("/books/{googleBookId}/chapters")
+    public List<Chapter> getChapters(@PathVariable String googleBookId) {
+        return chapterRepo.findByGoogleBookIdOrderByChapterIndex(googleBookId);
     }
 
     // New: Mark a chapter as read for a specific BookRead instance
@@ -209,7 +202,7 @@ public class ApiController {
             if (book == null)
                 continue;
             // Count all BookRead instances for this user/book
-            int readCount = (int) bookReads.stream().filter(b -> b.getBookOlid().equals(book.getOlid())).count();
+            int readCount = (int) bookReads.stream().filter(b -> b.getGoogleBookId().equals(book.getGoogleBookId())).count();
             // Get all read chapter IDs for this BookRead
             List<UUID> readChapterIds = readRepo.findByBookReadId(br.getId())
                     .stream().map(cr -> cr.getChapterId()).toList();
@@ -243,7 +236,7 @@ public class ApiController {
                     chapterMap.put("id", chapter.getId());
                     chapterMap.put("name", chapter.getName());
                     chapterMap.put("chapterIndex", chapter.getChapterIndex());
-                    chapterMap.put("bookOlid", chapter.getBookOlid());
+                    chapterMap.put("bookGoogleBookId", chapter.getGoogleBookId());
                     chapterMap.put("createdAt", chapter.getCreatedAt());
                     chapterMap.put("updatedAt", chapter.getUpdatedAt());
                     m.put("chapter", chapterMap);
@@ -260,7 +253,7 @@ public class ApiController {
                     Book book = bookRead.getBook();
                     if (book != null) {
                         Map<String, Object> bookMap = new HashMap<>();
-                        bookMap.put("olid", book.getOlid());
+                        bookMap.put("googleBookId", book.getGoogleBookId());
                         bookMap.put("title", book.getTitle());
                         bookMap.put("authors", book.getAuthors());
                         bookReadMap.put("book", bookMap);
@@ -324,15 +317,15 @@ public class ApiController {
     }
 
     // Create a new BookRead for an existing Book (for reread)
-    @PostMapping("/books/{olid}/reread")
-    public ResponseEntity<BookRead> rereadBook(@PathVariable String olid) {
+    @PostMapping("/books/{googleBookId}/reread")
+    public ResponseEntity<BookRead> rereadBook(@PathVariable String googleBookId) {
         User user = getCurrentUser();
-        Optional<Book> bookOpt = bookRepo.findById(olid);
+        Optional<Book> bookOpt = bookRepo.findById(googleBookId);
         if (bookOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
         BookRead br = new BookRead();
-        br.setBookOlid(olid);
+        br.setGoogleBookId(googleBookId);
         br.setUserId(user.getId());
         br.setStartDate(java.time.LocalDateTime.now());
         BookRead saved = bookReadRepo.save(br);
