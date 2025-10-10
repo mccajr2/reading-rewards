@@ -28,7 +28,7 @@ export default function ReadingList() {
   const [hoveredChapterId, setHoveredChapterId] = useState<string | null>(null);
 
   // Save chapter name to backend
-  const saveChapterName = async (chapterId: string, newName: string, bookOlid: string) => {
+  const saveChapterName = async (chapterId: string, newName: string) => {
     const res = await fetch(`${API_URL}/chapters/${chapterId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -38,8 +38,8 @@ export default function ReadingList() {
       // Update local state
       setChapters(prev => {
         const updated = { ...prev };
-        for (const olid in updated) {
-          updated[olid] = updated[olid].map((c: any) =>
+        for (const gbid in updated) {
+          updated[gbid] = updated[gbid].map((c: any) =>
             c.id === chapterId ? { ...c, name: newName } : c
           );
         }
@@ -55,9 +55,9 @@ export default function ReadingList() {
   const chapterListRefs = React.useRef<{ [bookReadId: string]: HTMLDivElement | null }>({});
 
   // Each bookRead is a unique reading instance (not just OLID)
-  const [bookReads, setBookReads] = useState<any[]>([]); // Each has id, bookOlid, inProgress, etc.
-  const [booksByOlid, setBooksByOlid] = useState<{ [olid: string]: any }>({});
-  const [chapters, setChapters] = useState<{ [olid: string]: any[] }>({});
+  const [bookReads, setBookReads] = useState<any[]>([]); // Each has id, googleBookId, inProgress, etc.
+  const [booksByGoogleBookId, setBooksByGoogleBookId] = useState<{ [googleBookId: string]: any }>({});
+  const [chapters, setChapters] = useState<{ [googleBookId: string]: any[] }>({});
   // Per BookReadId: Set of chapter UUIDs read
   const [readChapters, setReadChapters] = useState<{ [bookReadId: string]: Set<string> }>({});
   const [readDates, setReadDates] = useState<{ [bookReadId: string]: { [chapterId: string]: string } }>({});
@@ -104,22 +104,24 @@ export default function ReadingList() {
       if (!r.ok) return;
       const bookReadsArr = await r.json();
       setBookReads(bookReadsArr);
-      // Group by OLID for book info
-      const booksByOlid: { [olid: string]: any } = {};
+      // Group by googleBookId for book info
+      const booksByGoogleBookId: { [googleBookId: string]: any } = {};
       bookReadsArr.forEach((br: any) => {
-        booksByOlid[br.bookOlid] = {
-          olid: br.bookOlid,
+        booksByGoogleBookId[br.googleBookId] = {
+          googleBookId: br.googleBookId,
           title: br.title,
           authors: Array.isArray(br.authors) ? br.authors.join(', ') : br.authors,
-          readCount: br.readCount
+          readCount: br.readCount,
+          description: br.description,
+          thumbnailUrl: br.thumbnailUrl
         };
       });
-      setBooksByOlid(booksByOlid);
-      // Fetch chapters for each book OLID
-      const chaptersObj: { [olid: string]: any[] } = {};
+      setBooksByGoogleBookId(booksByGoogleBookId);
+      // Fetch chapters for each book googleBookId
+      const chaptersObj: { [googleBookId: string]: any[] } = {};
       for (const br of bookReadsArr) {
-        const rc = await fetch(`${API_URL}/books/${br.bookOlid}/chapters`);
-        chaptersObj[br.bookOlid] = rc.ok ? await rc.json() : [];
+        const rc = await fetch(`${API_URL}/books/${br.googleBookId}/chapters`);
+        chaptersObj[br.googleBookId] = rc.ok ? await rc.json() : [];
       }
       setChapters(chaptersObj);
       // Use readChapterIds from backend for each BookRead
@@ -134,7 +136,7 @@ export default function ReadingList() {
   }, []);
 
   // bookReadId-aware handleCheck
-  const handleCheck = async (bookReadId: string, bookOlid: string, chapter: any, isRead: boolean, isMostRecent: boolean) => {
+  const handleCheck = async (bookReadId: string, googleBookId: string, chapter: any, isRead: boolean, isMostRecent: boolean) => {
     const chapterId = chapter.id;
     if (!isRead) {
       // Mark as read for a specific BookRead instance
@@ -167,18 +169,18 @@ export default function ReadingList() {
       if (window.updateCredits) window.updateCredits();
 
       // Check if this was the final chapter
-      const allChapters = chapters[bookOlid] || [];
+      const allChapters = chapters[googleBookId] || [];
       const allRead = allChapters.every((c: any) => readChapters[bookReadId]?.has(c.id) || c.id === chapterId);
       if (allChapters.length > 0 && allRead) {
         if (window.confirm('Congratulations! You finished the book. Mark as finished and allow rereading?')) {
-          await fetch(`${API_URL}/books/${bookOlid}/finish`, { method: 'POST' });
-          // Redirect to history and pass completed book OLID in state
-          navigate('/history', { state: { completedOlid: bookOlid } });
+          await fetch(`${API_URL}/books/${googleBookId}/finish`, { method: 'POST' });
+          // Redirect to history and pass completed book ID in state
+          navigate('/history', { state: { completedGoogleBookId: googleBookId } });
         }
       }
     } else if (isMostRecent) {
       if (window.confirm('Are you sure you want to undo the most recent read for this chapter?')) {
-        const res = await fetch(`${API_URL}/books/${bookOlid}/chapters/${chapterId}/read`, { method: 'DELETE' });
+        const res = await fetch(`${API_URL}/books/${googleBookId}/chapters/${chapterId}/read`, { method: 'DELETE' });
         if (res.ok) {
           setReadChapters(prev => {
             const updated = { ...prev };
@@ -204,8 +206,8 @@ export default function ReadingList() {
       />
       {bookReads.length === 0 && <Typography>No books in progress.</Typography>}
       {bookReads.map(br => {
-        const book = booksByOlid[br.bookOlid] || {};
-        const chaptersArr = chapters[br.bookOlid] || [];
+        const book = booksByGoogleBookId[br.googleBookId] || {};
+        const chaptersArr = chapters[br.googleBookId] || [];
         const readSet = readChapters[br.id] || new Set();
         const dateMap = readDates[br.id] || {};
         // Find first unread chapter
@@ -254,7 +256,7 @@ export default function ReadingList() {
                       {(isCurrent && !isRead) || isMostRecent ? (
                         <Checkbox
                           checked={isRead}
-                          onChange={() => handleCheck(br.id, br.bookOlid, chapter, isRead, isMostRecent)}
+                          onChange={() => handleCheck(br.id, br.googleBookId, chapter, isRead, isMostRecent)}
                           sx={{ mr: 2 }}
                         />
                       ) : (
@@ -266,7 +268,7 @@ export default function ReadingList() {
                             <input
                               value={editValue}
                               onChange={e => setEditChapter(prev => ({ ...prev, [chapter.id]: { editing: true, value: e.target.value } }))}
-                              onBlur={() => saveChapterName(chapter.id, editValue, br.bookOlid)}
+                              onBlur={() => saveChapterName(chapter.id, editValue)}
                               onKeyDown={e => {
                                 if (e.key === 'Enter') {
                                   (e.target as HTMLInputElement).blur();
