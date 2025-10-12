@@ -15,7 +15,9 @@ public class GoogleBooksService {
     @SuppressWarnings("unchecked")
     public List<BookSummaryDto> search(final String title, final String author, final String isbn) {
 
-        if(title == null && author == null && isbn == null) {
+        if ((title == null || title.isEmpty()) &&
+            (author == null || author.isEmpty()) &&
+            (isbn == null || isbn.isEmpty())) {
             return Collections.emptyList();
         }
 
