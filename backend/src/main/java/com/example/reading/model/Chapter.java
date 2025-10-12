@@ -13,7 +13,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "chapters", uniqueConstraints = {
-        @UniqueConstraint(columnNames = { "book_olid", "chapter_index" })
+    @UniqueConstraint(columnNames = { "google_book_id", "chapter_index" })
 })
 @Data
 @NoArgsConstructor
@@ -25,11 +25,11 @@ public class Chapter {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "book_olid", nullable = false, length = 50)
-    private String bookOlid;
+    @Column(name = "google_book_id", nullable = false, length = 50)
+    private String googleBookId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "book_olid", insertable = false, updatable = false)
+    @JoinColumn(name = "google_book_id", insertable = false, updatable = false)
     @JsonIgnoreProperties({ "chapters" })
     private Book book;
 

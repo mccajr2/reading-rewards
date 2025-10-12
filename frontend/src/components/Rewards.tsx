@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from 'react';
-import { Box, Paper, Typography, Stack, Button, TextField, List, ListItem, Divider } from '@mui/material';
-
+import { Box, Paper, Typography, Stack, Button, TextField, List, ListItem, Divider, Pagination } from '@mui/material';
+ 
 interface Book {
     olid: string;
     title: string;
@@ -34,6 +34,9 @@ export default function Rewards() {
     const API_URL = import.meta.env.VITE_API_URL;
     const [summary, setSummary] = useState({ totalEarned: 0, totalPaidOut: 0, totalSpent: 0, currentBalance: 0 });
     const [rewards, setRewards] = useState<Reward[]>([]);
+    const [page, setPage] = useState(1);
+    const [pageSize] = useState(10);
+    const [totalCount, setTotalCount] = useState(0);
     const [payout, setPayout] = useState('');
     const [spend, setSpend] = useState('');
     const [spendNote, setSpendNote] = useState('');
@@ -43,11 +46,11 @@ export default function Rewards() {
         const r = await fetch(`${API_URL}/rewards/summary`);
         setSummary(await r.json());
     };
-    const fetchRewards = async () => {
-        const r = await fetch(`${API_URL}/rewards`);
+    const fetchRewards = async (pageNum = page) => {
+        const r = await fetch(`${API_URL}/rewards?page=${pageNum}&pageSize=${pageSize}`);
         const data = await r.json();
-        // Map backend response to frontend Reward type
-        setRewards(data.map((rw: any) => {
+        // Expecting { rewards: [...], totalCount: number }
+        setRewards((data.rewards || data).map((rw: any) => {
             let reward: Reward = {
                 id: rw.id,
                 type: rw.type,
@@ -59,12 +62,18 @@ export default function Rewards() {
             if (rw.bookRead) reward.bookRead = rw.bookRead;
             return reward;
         }));
+        setTotalCount(data.totalCount ?? (data.rewards ? data.rewards.length : data.length));
     };
 
     useEffect(() => {
         fetchSummary();
-        fetchRewards();
+        fetchRewards(1);
+        setPage(1);
     }, []);
+
+    useEffect(() => {
+        fetchRewards(page);
+    }, [page, pageSize]);
 
     const handlePayout = async () => {
         if (!payout || isNaN(Number(payout))) return;
@@ -72,7 +81,8 @@ export default function Rewards() {
         await fetch(`${API_URL}/rewards/payout?amount=${encodeURIComponent(payout)}`, { method: 'POST' });
         setPayout('');
         await fetchSummary();
-        await fetchRewards();
+        await fetchRewards(page); // Pass current page to maintain pagination
+        if (window.updateCredits) window.updateCredits();
         setLoading(false);
     };
     const handleSpend = async () => {
@@ -82,9 +92,12 @@ export default function Rewards() {
         setSpend('');
         setSpendNote('');
         await fetchSummary();
-        await fetchRewards();
+        await fetchRewards(page); // Pass current page to maintain pagination
+        if (window.updateCredits) window.updateCredits();
         setLoading(false);
     };
+
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
     return (
         <Box maxWidth={600} mx="auto" mt={4}>
@@ -162,6 +175,16 @@ export default function Rewards() {
                         </ListItem>
                     ))}
                 </List>
+                {totalPages > 1 && (
+                    <Box display="flex" justifyContent="center" mt={2}>
+                        <Pagination
+                            count={totalPages}
+                            page={page}
+                            onChange={(_, value) => setPage(value)}
+                            color="primary"
+                        />
+                    </Box>
+                )}
             </Paper>
         </Box>
     );

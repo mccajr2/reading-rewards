@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface ChapterRepository extends JpaRepository<Chapter, UUID> {
-    List<Chapter> findByBookOlidOrderByChapterIndex(String bookOlid);
+    List<Chapter> findByGoogleBookIdOrderByChapterIndex(String googleBookId);
 
-    void deleteByBookOlid(String bookOlid);
+    void deleteByGoogleBookId(String googleBookId);
 }

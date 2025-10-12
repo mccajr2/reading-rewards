@@ -22,16 +22,25 @@ import java.util.stream.Collectors;
 public class Book {
 
     @Id
-    @Column(length = 50)
-    private String olid;
+    @Column(name = "google_book_id", length = 50)
+    private String googleBookId;
+
 
     @Column(nullable = false, length = 500)
     private String title;
 
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "thumbnail_url", length = 1000)
+    private String thumbnailUrl;
+
     // Store authors as a comma-separated string in the DB, but expose as
     // List<String> in Java
+
     @Column(name = "authors", nullable = false, columnDefinition = "TEXT")
     private String authorsString;
+
 
     @Transient
     private List<String> authors;
@@ -43,6 +52,7 @@ public class Book {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
 
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnoreProperties({ "book" })
