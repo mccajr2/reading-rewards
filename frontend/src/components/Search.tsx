@@ -106,10 +106,14 @@ export default function Search() {
   };
 
   const toggleExpand = async (index: number, book: BookSummaryDto) => {
-    setExpanded(prev => ({ ...prev, [index]: !prev[index] }));
-    if (!details[index] && !expanded[index]) {
-      setDetails(prev => ({ ...prev, [index]: book }));
-    }
+    setExpanded(prev => {
+      const next = { ...prev, [index]: !prev[index] };
+      // If expanding and details not set, set details
+      if (!prev[index] && !details[index]) {
+        setDetails(prevDetails => ({ ...prevDetails, [index]: book }));
+      }
+      return next;
+    });
   };
 
   const handleScan = async () => {

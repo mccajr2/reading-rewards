@@ -76,25 +76,25 @@ export default function Rewards() {
     }, [page, pageSize]);
 
     const handlePayout = async () => {
-    if (!payout || isNaN(Number(payout))) return;
-    setLoading(true);
-    await fetch(`${API_URL}/rewards/payout?amount=${encodeURIComponent(payout)}`, { method: 'POST' });
-    setPayout('');
-    await fetchSummary();
-    await fetchRewards();
-    if (window.updateCredits) window.updateCredits();
-    setLoading(false);
+        if (!payout || isNaN(Number(payout))) return;
+        setLoading(true);
+        await fetch(`${API_URL}/rewards/payout?amount=${encodeURIComponent(payout)}`, { method: 'POST' });
+        setPayout('');
+        await fetchSummary();
+        await fetchRewards(page); // Pass current page to maintain pagination
+        if (window.updateCredits) window.updateCredits();
+        setLoading(false);
     };
     const handleSpend = async () => {
-    if (!spend || isNaN(Number(spend)) || !spendNote) return;
-    setLoading(true);
-    await fetch(`${API_URL}/rewards/spend?amount=${encodeURIComponent(spend)}&note=${encodeURIComponent(spendNote)}`, { method: 'POST' });
-    setSpend('');
-    setSpendNote('');
-    await fetchSummary();
-    await fetchRewards();
-    if (window.updateCredits) window.updateCredits();
-    setLoading(false);
+        if (!spend || isNaN(Number(spend)) || !spendNote) return;
+        setLoading(true);
+        await fetch(`${API_URL}/rewards/spend?amount=${encodeURIComponent(spend)}&note=${encodeURIComponent(spendNote)}`, { method: 'POST' });
+        setSpend('');
+        setSpendNote('');
+        await fetchSummary();
+        await fetchRewards(page); // Pass current page to maintain pagination
+        if (window.updateCredits) window.updateCredits();
+        setLoading(false);
     };
 
     const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));

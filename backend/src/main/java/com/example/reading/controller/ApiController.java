@@ -83,7 +83,7 @@ public class ApiController {
     public Book saveBook(@RequestBody BookSummaryDto dto) {
         User user = getCurrentUser();
         Book b = new Book();
-        b.setGoogleBookId(dto.getGoogleBookId()); // DTO field may still be 'olid' for now
+        b.setGoogleBookId(dto.getGoogleBookId());
         b.setTitle(dto.getTitle());
         b.setDescription(dto.getDescription());
         b.setThumbnailUrl(dto.getThumbnailUrl());
