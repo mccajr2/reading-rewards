@@ -1,4 +1,19 @@
-import { useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
+// Wrapper for protected routes
+function RequireAuth({ children, role }: { children: React.ReactNode; role?: string }) {
+  const token = localStorage.getItem(TOKEN_KEY);
+  const user = localStorage.getItem(USER_KEY) ? JSON.parse(localStorage.getItem(USER_KEY)!) : null;
+  if (!token) return <Navigate to="/" replace />;
+  if (role && user?.role !== role) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+import CreateChildForm from './components/CreateChildForm';
+import { useEffect, useState } from 'react';
+import LoginForm from './components/LoginForm';
+import SignupForm from './components/SignupForm';
+// Utility to store and get JWT
+const TOKEN_KEY = 'reading_rewards_jwt';
+const USER_KEY = 'reading_rewards_user';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import Search from './components/Search';
 import ReadingList from './components/ReadingList';
@@ -17,9 +32,66 @@ import { bruinsTheme } from './theme';
 
 
 function MainApp() {
+  const API_URL = import.meta.env.VITE_API_URL;
+  // --- Auth state ---
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
+  const [user, setUser] = useState<any>(() => {
+    const u = localStorage.getItem(USER_KEY);
+    return u ? JSON.parse(u) : null;
+  });
+  const [showSignup, setShowSignup] = useState(false);
+
+  // Attach JWT to all fetch requests
+  useEffect(() => {
+    if (!token) return;
+    const origFetch = window.fetch;
+    window.fetch = (input, init = {}) => {
+      if (typeof input === 'string' && input.startsWith(import.meta.env.VITE_API_URL)) {
+        init.headers = {
+          ...(init.headers || {}),
+          Authorization: `Bearer ${token}`,
+        };
+      }
+      return origFetch(input, init);
+    };
+    return () => { window.fetch = origFetch; };
+  }, [token]);
+
+  const handleLogin = (data: any) => {
+    setToken(data.token);
+    setUser(data);
+    localStorage.setItem(TOKEN_KEY, data.token);
+    localStorage.setItem(USER_KEY, JSON.stringify(data));
+  };
+  const handleLogout = () => {
+    setToken(null);
+    setUser(null);
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+  };
+  const handleSignup = (data: any) => {
+    setShowSignup(false);
+    // Optionally auto-login after signup
+  };
   const KID_NAME = import.meta.env.VITE_KID_NAME;
   const location = useLocation();
   const navigate = useNavigate();
+  // Redirect child users away from /parent
+  useEffect(() => {
+    if (user?.role === 'CHILD' && location.pathname === '/parent') {
+      // Check if child has books in progress
+      fetch(`${API_URL}/bookreads/in-progress`)
+        .then(r => r.ok ? r.json() : [])
+        .then((bookReads) => {
+          if (Array.isArray(bookReads) && bookReads.length > 0) {
+            navigate('/list', { replace: true });
+          } else {
+            navigate('/search', { replace: true });
+          }
+        })
+        .catch(() => navigate('/search', { replace: true }));
+    }
+  }, [user, location.pathname, API_URL, navigate]);
   useEffect(() => {
     if (KID_NAME) {
       document.title = `${KID_NAME}'s Reading Rewards`;
@@ -28,11 +100,40 @@ function MainApp() {
     }
   }, [KID_NAME]);
 
+  // --- Auth UI ---
+  if (!token) {
+    return (
+      <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Box>
+          {showSignup ? (
+            <SignupForm onSignup={handleSignup} />
+          ) : (
+            <LoginForm onLogin={handleLogin} />
+          )}
+          <Box sx={{ textAlign: 'center', mt: 2 }}>
+            {showSignup ? (
+              <>
+                <span>Already have an account? </span>
+                <a href="#" onClick={e => { e.preventDefault(); setShowSignup(false); }}>Login</a>
+              </>
+            ) : (
+              <>
+                <span>New parent? </span>
+                <a href="#" onClick={e => { e.preventDefault(); setShowSignup(true); }}>Sign up</a>
+              </>
+            )}
+          </Box>
+        </Box>
+      </Box>
+    );
+  }
+
   // Tab value based on route
   const tabValue =
     location.pathname === '/list' ? 'list'
       : location.pathname === '/history' ? 'history'
-        : 'search';
+      : location.pathname === '/parent' ? 'parent'
+      : 'search';
 
   return (
     <ThemeProvider theme={bruinsTheme}>
@@ -87,14 +188,21 @@ function MainApp() {
               <Tabs
                 value={tabValue}
                 onChange={(_e, v) => {
-                  navigate(v === 'list' ? '/list' : v === 'history' ? '/history' : '/search');
+                  if (v === 'list') navigate('/list');
+                  else if (v === 'history') navigate('/history');
+                  else if (v === 'parent') navigate('/parent');
+                  else navigate('/search');
                 }}
                 sx={{ minHeight: 48 }}
               >
                 <Tab label="Current Books" value="list" />
                 <Tab label="Reading History" value="history" />
                 <Tab label="Find Books" value="search" />
+                {user?.role === 'PARENT' && <Tab label="Parent Dashboard" value="parent" />}
               </Tabs>
+              <Box sx={{ position: 'absolute', right: 24, top: 24 }}>
+                <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: '#fff', fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>Logout</button>
+              </Box>
             </Toolbar>
             <Box sx={{ padding: 1 }} />
           </AppBar>
@@ -110,11 +218,14 @@ function MainApp() {
             }}
           >
             <Routes>
-              <Route path="/search" element={<Search />} />
-              <Route path="/list" element={<ReadingList />} />
-              <Route path="/history" element={<History />} />
-              <Route path="/rewards" element={<Rewards />} />
-              <Route path="*" element={<Search />} />
+              <Route path="/search" element={<RequireAuth><Search /></RequireAuth>} />
+              <Route path="/list" element={<RequireAuth><ReadingList /></RequireAuth>} />
+              <Route path="/history" element={<RequireAuth><History /></RequireAuth>} />
+              <Route path="/rewards" element={<RequireAuth><Rewards /></RequireAuth>} />
+              {user?.role === 'PARENT' && (
+                <Route path="/parent" element={<RequireAuth role="PARENT"><CreateChildForm /></RequireAuth>} />
+              )}
+              <Route path="*" element={<RequireAuth><Search /></RequireAuth>} />
             </Routes>
           </Box>
         </Box>

@@ -6,6 +6,15 @@ declare global {
 }
 
 import { useState, useEffect } from 'react';
+// Helper to always include JWT in Authorization header
+function authFetch(input: RequestInfo, init: RequestInit = {}) {
+  const token = localStorage.getItem('jwt');
+  const headers = new Headers(init.headers || {});
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  return fetch(input, { ...init, headers });
+}
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
@@ -32,34 +41,48 @@ export default function Search() {
   const [results, setResults] = useState<BookSummaryDto[]>([]);
   const [expanded, setExpanded] = useState<{ [key: number]: boolean }>({});
   const [details, setDetails] = useState<{ [key: number]: BookSummaryDto | undefined }>({});
-  const [existingBooks, setExistingBooks] = useState<{ [googleBookId: string]: any }>({});
+  // Track books in progress for the current user only
+  const [userBooks, setUserBooks] = useState<{ [googleBookId: string]: any }>({});
+  // Track all books in the database (across all users)
+  const [allBooks, setAllBooks] = useState<{ [googleBookId: string]: any }>({});
 
   const API_URL = import.meta.env.VITE_API_URL;
 
-  // Fetch all books in DB on mount
+  // Fetch all books in progress for the current user and all books in the DB on mount
   useEffect(() => {
-    const fetchExistingBooks = async () => {
-      const r = await fetch(`${API_URL}/books`);
+    const fetchUserBooks = async () => {
+      const r = await authFetch(`${API_URL}/books`, { credentials: 'include' });
       if (r.ok) {
         const books = await r.json();
         const map: { [googleBookId: string]: any } = {};
         books.forEach((b: any) => { map[b.googleBookId] = b; });
-        setExistingBooks(map);
+        setUserBooks(map);
       }
     };
-    fetchExistingBooks();
+    // Fetch all books in the DB (across all users)
+    const fetchAllBooks = async () => {
+      const r = await authFetch(`${API_URL}/all-books`); // <-- You need to implement this endpoint in the backend
+      if (r.ok) {
+        const books = await r.json();
+        const map: { [googleBookId: string]: any } = {};
+        books.forEach((b: any) => { map[b.googleBookId] = b; });
+        setAllBooks(map);
+      }
+    };
+    fetchUserBooks();
+    fetchAllBooks();
   }, []);
 
   const search = async () => {
     const params = new URLSearchParams();
     if (title) params.append('title', title);
     if (author) params.append('author', author);
-    const r = await fetch(`${API_URL}/search?` + params.toString());
+    const r = await authFetch(`${API_URL}/search?` + params.toString());
     const docs: BookSummaryDto[] = await r.json();
-    // Move any existing book to top
+    // Move any book the user has in their list to the top
     const sorted = docs.sort((a, b) => {
-      const aExists = !!existingBooks[a.googleBookId];
-      const bExists = !!existingBooks[b.googleBookId];
+      const aExists = !!userBooks[a.googleBookId];
+      const bExists = !!userBooks[b.googleBookId];
       if (aExists && !bExists) return -1;
       if (!aExists && bExists) return 1;
       return 0;
@@ -70,6 +93,49 @@ export default function Search() {
   };
 
   const addBook = async (book: BookSummaryDto) => {
+    // If the user already has this book, just add BookRead for this user (no chapter prompt)
+    if (userBooks[book.googleBookId]) {
+      // Save book (will only add BookRead for user)
+      const bookRes = await authFetch(`${API_URL}/books`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          googleBookId: book.googleBookId,
+          title: book.title,
+          authors: Array.isArray(book.authors) ? book.authors : [book.authors],
+          description: book.description,
+          thumbnailUrl: book.thumbnailUrl
+        })
+      });
+      if (!bookRes.ok) {
+        alert('Failed to add book.');
+        return;
+      }
+      // Redirect to reading list and scroll to the new book
+      navigate('/list', { state: { newGoogleBookId: book.googleBookId } });
+      return;
+    }
+    // If the book exists in the DB (for any user), just add BookRead for this user (no chapter prompt)
+    if (allBooks[book.googleBookId]) {
+      const bookRes = await authFetch(`${API_URL}/books`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          googleBookId: book.googleBookId,
+          title: book.title,
+          authors: Array.isArray(book.authors) ? book.authors : [book.authors],
+          description: book.description,
+          thumbnailUrl: book.thumbnailUrl
+        })
+      });
+      if (!bookRes.ok) {
+        alert('Failed to add book.');
+        return;
+      }
+      navigate('/list', { state: { newGoogleBookId: book.googleBookId } });
+      return;
+    }
+    // Book does not exist in the DB at all, prompt for chapters
     const chapterCountStr = window.prompt('How many chapters are in this book?');
     const chapterCount = chapterCountStr ? parseInt(chapterCountStr, 10) : 0;
     if (!chapterCount || isNaN(chapterCount) || chapterCount < 1) {
@@ -82,9 +148,8 @@ export default function Search() {
       name: `Chapter ${idx + 1}`,
       googleBookId: book.googleBookId
     }));
-    console.log("Chapters to send:", chapters);
     // Save book first (authors as array)
-    const bookRes = await fetch(`${API_URL}/books`, {
+    const bookRes = await authFetch(`${API_URL}/books`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ googleBookId: book.googleBookId, title: book.title, authors: Array.isArray(book.authors) ? book.authors : [book.authors], description: book.description, thumbnailUrl: book.thumbnailUrl })
     });
     if (!bookRes.ok) {
@@ -92,11 +157,9 @@ export default function Search() {
       return;
     }
     // Save chapters
-    const chaptersRes = await fetch(`${API_URL}/books/${book.googleBookId}/chapters`, {
+    const chaptersRes = await authFetch(`${API_URL}/books/${book.googleBookId}/chapters`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(chapters)
     });
-    const chaptersResText = await chaptersRes.text();
-    console.log("Chapters response:", chaptersRes.status, chaptersResText);
     if (!chaptersRes.ok) {
       alert('Failed to add chapters.');
       return;
@@ -126,8 +189,8 @@ export default function Search() {
       ]);
 
       const codeReader = new BrowserMultiFormatReader(hints);
-    // Store codeReader globally so Stop Scanner can access and reset it
-    window.codeReader = codeReader;
+      // Store codeReader globally so Stop Scanner can access and reset it
+      window.codeReader = codeReader;
 
       const constraints = { video: { facingMode: "environment" } as MediaTrackConstraints };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -148,7 +211,7 @@ export default function Search() {
 
           try {
             const API_URL = import.meta.env.VITE_API_URL;
-            const response = await fetch(
+            const response = await authFetch(
               `${API_URL}/search?isbn=${isbnOrUpc}`
             );
             if (!response.ok) throw new Error(`Book not found for code ${isbnOrUpc}`);
@@ -259,7 +322,7 @@ export default function Search() {
       <List>
         {results.map((r, i) => {
           const googleBookId = r.googleBookId;
-          const existing = existingBooks[googleBookId];
+          const userBook = userBooks[googleBookId];
           return (
             <ListItem key={i} sx={{ display: 'block', mb: 1, border: '1px solid #dee2e6', borderRadius: 1, background: '#fff' }}>
               <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -271,20 +334,20 @@ export default function Search() {
                   <Button size="small" variant="contained" color="info" onClick={() => toggleExpand(i, r)}>
                     {expanded[i] ? 'Hide Details' : 'Show Details'}
                   </Button>
-                  {!existing && (
+                  {!userBook && (
                     <Button size="small" variant="contained" color="success" onClick={() => addBook(r)}>Add</Button>
                   )}
-                  {existing && existing.inProgress && (
+                  {userBook && userBook.inProgress && (
                     <Button size="small" variant="contained" color="primary" onClick={() => window.location.href = '/readinglist'}>
                       See in Reading list
                     </Button>
                   )}
-                  {existing && !existing.inProgress && (
+                  {userBook && !userBook.inProgress && (
                     <Button size="small" variant="contained" color="warning" onClick={async () => {
                       // Call backend reread endpoint and redirect to reading list, scroll to this book
-                      const res = await fetch(`${API_URL}/books/${existing.googleBookId}/reread`, { method: 'POST' });
+                      const res = await authFetch(`${API_URL}/books/${userBook.googleBookId}/reread`, { method: 'POST' });
                       if (res.ok) {
-                        navigate('/list', { state: { newGoogleBookId: existing.googleBookId } });
+                        navigate('/list', { state: { newGoogleBookId: userBook.googleBookId } });
                       } else {
                         alert('Failed to start reread.');
                       }
