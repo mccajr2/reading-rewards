@@ -31,7 +31,6 @@ export default function Search() {
   const [author, setAuthor] = useState('');
   const [results, setResults] = useState<BookSummaryDto[]>([]);
   const [expanded, setExpanded] = useState<{ [key: number]: boolean }>({});
-  const [details, setDetails] = useState<{ [key: number]: BookSummaryDto | undefined }>({});
   const [existingBooks, setExistingBooks] = useState<{ [googleBookId: string]: any }>({});
 
   const API_URL = import.meta.env.VITE_API_URL;
@@ -66,7 +65,6 @@ export default function Search() {
     });
     setResults(sorted);
     setExpanded({});
-    setDetails({});
   };
 
   const addBook = async (book: BookSummaryDto) => {
@@ -105,14 +103,9 @@ export default function Search() {
     navigate('/list', { state: { newGoogleBookId: book.googleBookId } });
   };
 
-  const toggleExpand = async (index: number, book: BookSummaryDto) => {
+  const toggleExpand = async (index: number) => {
     setExpanded(prev => {
-      const next = { ...prev, [index]: !prev[index] };
-      // If expanding and details not set, set details
-      if (!prev[index] && !details[index]) {
-        setDetails(prevDetails => ({ ...prevDetails, [index]: book }));
-      }
-      return next;
+      return { ...prev, [index]: !prev[index] };
     });
   };
 
@@ -161,7 +154,6 @@ export default function Search() {
             if (book) {
               setResults([book]);
               setExpanded({ 0: true });
-              setDetails({ 0: book });
             } else {
               setError("Book not found for code " + isbnOrUpc);
             }
@@ -298,25 +290,25 @@ export default function Search() {
                   )}
                 </Stack>
               </Box>
-              {expanded[i] && details[i] && (
+              {expanded[i] && (
                 <Box mt={2} p={2} borderRadius={1} bgcolor="#f8f9fa" border={1} borderColor="#dee2e6">
                   <Box display="flex" alignItems="flex-start" gap={2}>
                     {/* Cover Art */}
-                    {details[i].thumbnailUrl && (
+                    {r.thumbnailUrl && (
                       <img
-                        src={details[i].thumbnailUrl}
+                        src={r.thumbnailUrl}
                         alt="Book cover"
                         style={{ maxWidth: '128px', maxHeight: '200px', borderRadius: '4px', marginRight: '8px' }}
                       />
                     )}
                     {/* Description */}
                     <Box flex={1}>
-                      {details[i].description && (
+                      {r.description && (
                         <Box mb={2}>
                           <Typography variant="subtitle2" fontWeight="bold">Description:</Typography>
                           <Box textAlign="left">
-                            {details[i].description && (
-                              <span dangerouslySetInnerHTML={{ __html: details[i].description }} />
+                            {r.description && (
+                              <span dangerouslySetInnerHTML={{ __html: r.description }} />
                             )}
                           </Box>
                         </Box>
