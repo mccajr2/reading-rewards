@@ -8,7 +8,6 @@ declare global {
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
-import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
@@ -16,14 +15,15 @@ import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
-import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
+import Scanner from './Scanner';
+import ManualSearch from './ManualSearch';
 import InfoBanner from './InfoBanner';
 import type { BookSummaryDto } from '../types/dto';
 
 export default function Search() {
   const navigate = useNavigate();
   const [tab, setTab] = useState(0);
-  const [scanning, setScanning] = useState(false);
+  const [] = useState(false); // Only needed for legacy, can be removed after refactor
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -109,63 +109,26 @@ export default function Search() {
     });
   };
 
-  const handleScan = async () => {
+
+  // Handler for scanner result
+  const handleScannerResult = async (isbnOrUpc: string) => {
     setError("");
     setLoading(true);
-
     try {
-      const hints = new Map();
-      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-        BarcodeFormat.UPC_A,
-        BarcodeFormat.UPC_E,
-        BarcodeFormat.EAN_8,
-        BarcodeFormat.EAN_13,
-      ]);
-
-      const codeReader = new BrowserMultiFormatReader(hints);
-    // Store codeReader globally so Stop Scanner can access and reset it
-    window.codeReader = codeReader;
-
-      const constraints = { video: { facingMode: "environment" } as MediaTrackConstraints };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      const videoElement = document.getElementById("video") as HTMLVideoElement;
-      videoElement.srcObject = stream;
-      await videoElement.play();
-      setScanning(true);
-
-      codeReader.decodeFromVideoDevice(null, "video", async (result) => {
-        if (result) {
-          const isbnOrUpc = result.getText();
-          console.log("✅ Scanned:", isbnOrUpc);
-
-          codeReader.reset();
-          (stream.getTracks() || []).forEach((t) => t.stop());
-          videoElement.srcObject = null;
-          setScanning(false);
-
-          try {
-            const API_URL = import.meta.env.VITE_API_URL;
-            const response = await fetch(
-              `${API_URL}/search?isbn=${isbnOrUpc}`
-            );
-            if (!response.ok) throw new Error(`Book not found for code ${isbnOrUpc}`);
-            const books: BookSummaryDto[] = await response.json();
-            const book = books[0];
-            if (book) {
-              setResults([book]);
-              setExpanded({ 0: true });
-            } else {
-              setError("Book not found for code " + isbnOrUpc);
-            }
-          } catch (lookupErr: any) {
-            setError(lookupErr.message || "Lookup failed.");
-          }
-        }
-      });
-    } catch (err: any) {
-      setError(err.message || "Scanner error");
+      const response = await fetch(`${API_URL}/search?isbn=${isbnOrUpc}`);
+      if (!response.ok) throw new Error(`Book not found for code ${isbnOrUpc}`);
+      const books: BookSummaryDto[] = await response.json();
+      const book = books[0];
+      if (book) {
+        setResults([book]);
+        setExpanded({ 0: true });
+      } else {
+        setError("Book not found for code " + isbnOrUpc);
+      }
+    } catch (lookupErr: any) {
+      setError(lookupErr.message || "Lookup failed.");
+    } finally {
       setLoading(false);
-      setScanning(false);
     }
   };
 
@@ -190,67 +153,22 @@ export default function Search() {
         <Tab label="Manual Search" />
       </Tabs>
       {tab === 0 && (
-        <Box p={2}>
-          {/* UPC Scanner */}
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-            {!scanning && (
-              <Button variant="contained" onClick={handleScan} disabled={loading}>
-                Start Scanner
-              </Button>
-            )}
-            {scanning && (
-              <Button
-                variant="outlined"
-                color="secondary"
-                onClick={() => {
-                  const videoElement = document.getElementById("video") as HTMLVideoElement;
-                  if (videoElement && videoElement.srcObject) {
-                    (videoElement.srcObject as MediaStream)
-                      .getTracks()
-                      .forEach((track) => track.stop());
-                    videoElement.srcObject = null;
-                  }
-                    // Also reset the codeReader if it exists
-                    if (window.codeReader && typeof window.codeReader.reset === 'function') {
-                      window.codeReader.reset();
-                    }
-                  setScanning(false);
-                }}
-              >
-                Stop Scanner
-              </Button>
-            )}
-          </Stack>
-          <video
-            id="video"
-            width="300"
-            height="200"
-            style={{ border: "1px solid black" }}
-          />
-        </Box>
+        <Scanner
+          onResult={handleScannerResult}
+          loading={loading}
+          setLoading={setLoading}
+          setError={setError}
+        />
       )}
       {tab === 1 && (
-        <>
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
-            <TextField
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="Title"
-              onKeyDown={e => { if (e.key === 'Enter' && (title || author)) search(); }}
-              size="small"
-              sx={{ flex: 1 }}
-            />
-            <TextField
-              value={author}
-              onChange={e => setAuthor(e.target.value)}
-              placeholder="Author"
-              onKeyDown={e => { if (e.key === 'Enter' && (title || author)) search(); }}
-              size="small"
-              sx={{ flex: 1 }}
-            />
-            <Button variant="outlined" onClick={search} disabled={!title && !author}>Search</Button>
-          </Stack>
-        </>
+        <ManualSearch
+          title={title}
+          setTitle={setTitle}
+          author={author}
+          setAuthor={setAuthor}
+          onSearch={search}
+          loading={loading}
+        />
       )}
       <List>
         {results.map((r, i) => {
@@ -264,7 +182,7 @@ export default function Search() {
                   <Typography variant="body2" color="text.secondary">{r.authors && r.authors.join(', ')}</Typography>
                 </Box>
                 <Stack direction="row" spacing={1}>
-                  <Button size="small" variant="contained" color="info" onClick={() => toggleExpand(i, r)}>
+                  <Button size="small" variant="contained" color="info" onClick={() => toggleExpand(i)}>
                     {expanded[i] ? 'Hide Details' : 'Show Details'}
                   </Button>
                   {!existing && (
