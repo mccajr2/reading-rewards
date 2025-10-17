@@ -1,42 +1,41 @@
 import React, { useState } from 'react';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import Paper from '@mui/material/Paper';
-import Link from '@mui/material/Link';
+import { Box, Button, TextField, Typography, Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useNavigate } from 'react-router-dom';
 
-export default function Login({ onLogin }) {
+export default function Signup() {
   const theme = useTheme();
-  const navigate = useNavigate();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const API_URL = import.meta.env.VITE_API_URL;
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccess('');
     try {
-      const res = await fetch(`${API_URL}/auth/login`, {
+      const res = await fetch(`${API_URL}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ email, password, firstName, lastName })
       });
+      const text = await res.text();
       if (!res.ok) {
-        const text = await res.text();
-        setError(text || 'Invalid credentials');
-        setLoading(false);
-        return;
+        setError(text);
+      } else {
+        setSuccess(text);
+        setEmail('');
+        setPassword('');
+        setFirstName('');
+        setLastName('');
       }
-      const data = await res.json();
-      if (onLogin) onLogin(data.token, data.user);
     } catch (err) {
-      setError('Login failed. Please try again.');
+      setError('Signup failed');
     } finally {
       setLoading(false);
     }
@@ -46,16 +45,16 @@ export default function Login({ onLogin }) {
     <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: theme.palette.background.default }}>
       <Paper elevation={6} sx={{ p: 4, minWidth: 340 }}>
         <Typography variant="h5" color="primary" gutterBottom align="center">
-          Reading Rewards Login
+          Parent Sign Up
         </Typography>
         <form onSubmit={handleSubmit}>
           <TextField
-            label="Username"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
+            label="Email"
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
             fullWidth
             margin="normal"
-            autoFocus
             required
           />
           <TextField
@@ -67,7 +66,24 @@ export default function Login({ onLogin }) {
             margin="normal"
             required
           />
+          <TextField
+            label="First Name"
+            value={firstName}
+            onChange={e => setFirstName(e.target.value)}
+            fullWidth
+            margin="normal"
+            required
+          />
+          <TextField
+            label="Last Name"
+            value={lastName}
+            onChange={e => setLastName(e.target.value)}
+            fullWidth
+            margin="normal"
+            required
+          />
           {error && <Typography color="error" sx={{ mt: 1 }}>{error}</Typography>}
+          {success && <Typography color="success.main" sx={{ mt: 1 }}>{success}</Typography>}
           <Button
             type="submit"
             variant="contained"
@@ -76,19 +92,9 @@ export default function Login({ onLogin }) {
             sx={{ mt: 2 }}
             disabled={loading}
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? 'Signing up...' : 'Sign Up'}
           </Button>
         </form>
-        <Box sx={{ mt: 2, textAlign: 'center' }}>
-          <Link
-            component="button"
-            variant="body2"
-            onClick={() => navigate('/signup')}
-            sx={{ color: theme.palette.primary.main, fontWeight: 700 }}
-          >
-            Parent? Sign up here
-          </Link>
-        </Box>
       </Paper>
     </Box>
   );

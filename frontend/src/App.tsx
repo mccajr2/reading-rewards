@@ -15,7 +15,9 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { bruinsTheme } from './theme';
 import Login from './components/Login';
+import Signup from './components/Signup';
 import { useAuth } from './components/AuthContext';
+import VerifyEmail from './components/VerifyEmail';
 
 
 function MainApp() {
@@ -157,6 +159,7 @@ function MainApp() {
               <Route path="/list" element={<ReadingList />} />
               <Route path="/history" element={<History />} />
               <Route path="/rewards" element={<Rewards />} />
+              <Route path="/signup" element={<Signup />} />
               <Route path="*" element={<Search />} />
             </Routes>
           </Box>
@@ -169,11 +172,23 @@ function MainApp() {
 export default function App() {
   const { token, login } = useAuth();
   if (!token) {
-    return <Login onLogin={login} />;
+      return (
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Login onLogin={login} />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="*" element={<Login onLogin={login} />} />
+          </Routes>
+        </Router>
+      );
   }
   return (
     <Router>
-      <MainApp />
+      <Routes>
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="*" element={<MainApp />} />
+      </Routes>
     </Router>
   );
 }
