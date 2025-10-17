@@ -19,13 +19,13 @@ import { useAuth } from './components/AuthContext';
 
 
 function MainApp() {
-  const KID_NAME = import.meta.env.VITE_KID_NAME;
+  const { token, logout, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const { token, logout } = useAuth();
   const API_URL = import.meta.env.VITE_API_URL;
+  const KID_NAME = user?.firstName || '';
   useEffect(() => {
-    if (KID_NAME) {
+    if (KID_NAME && KID_NAME.trim().length > 0) {
       document.title = `${KID_NAME}'s Reading Rewards`;
     } else {
       document.title = 'Reading Rewards';
