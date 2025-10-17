@@ -46,6 +46,9 @@ public class User {
     @Column(unique = true, length = 100)
     private String username;
 
+    @Column(name = "first_name", length = 100)
+    private String firstName;
+
     @Column(nullable = false)
     private String password;
 

@@ -1,6 +1,8 @@
 
 
 import React, { useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
+import { fetchWithAuth } from '../fetchWithAuth';
 import EditIcon from '@mui/icons-material/Edit';
 // Inline edit state for chapter names
 type EditState = {
@@ -26,6 +28,7 @@ declare global {
 
 // BookRead-aware ReadingList
 export default function ReadingList() {
+  const { token } = useAuth();
   // Inline edit state for chapter names
   const [editChapter, setEditChapter] = useState<EditState>({});
   // Track which chapter row is hovered
@@ -33,11 +36,11 @@ export default function ReadingList() {
 
   // Save chapter name to backend
   const saveChapterName = async (chapterId: string, newName: string) => {
-    const res = await fetch(`${API_URL}/chapters/${chapterId}`, {
+    const res = await fetchWithAuth(`${API_URL}/chapters/${chapterId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newName })
-    });
+    }, token);
     if (res.ok) {
       // Update local state
       setChapters(prev => {
@@ -104,7 +107,7 @@ export default function ReadingList() {
   useEffect(() => {
     const fetchList = async () => {
       // Fetch all in-progress BookRead objects for the user
-      const r = await fetch(`${API_URL}/bookreads/in-progress`);
+  const r = await fetchWithAuth(`${API_URL}/bookreads/in-progress`, {}, token);
       if (!r.ok) return;
       const bookReadsArr = await r.json();
       setBookReads(bookReadsArr);
@@ -124,7 +127,7 @@ export default function ReadingList() {
       // Fetch chapters for each book googleBookId
       const chaptersObj: { [googleBookId: string]: any[] } = {};
       for (const br of bookReadsArr) {
-        const rc = await fetch(`${API_URL}/books/${br.googleBookId}/chapters`);
+  const rc = await fetchWithAuth(`${API_URL}/books/${br.googleBookId}/chapters`, {}, token);
         chaptersObj[br.googleBookId] = rc.ok ? await rc.json() : [];
       }
       setChapters(chaptersObj);
@@ -135,7 +138,7 @@ export default function ReadingList() {
       for (const br of bookReadsArr) {
         readObj[br.id] = new Set(br.readChapterIds || []);
         // Fetch chapterreads for this BookRead to get completion dates
-        const crRes = await fetch(`${API_URL}/bookreads/${br.id}/chapterreads`);
+  const crRes = await fetchWithAuth(`${API_URL}/bookreads/${br.id}/chapterreads`, {}, token);
         if (crRes.ok) {
           const chapterReads = await crRes.json();
           readDatesObj[br.id] = {};
@@ -159,7 +162,7 @@ export default function ReadingList() {
     const chapterId = chapter.id;
     if (!isRead) {
       // Mark as read for a specific BookRead instance
-      const res = await fetch(`${API_URL}/bookreads/${bookReadId}/chapters/${chapterId}/read`, { method: 'POST' });
+  const res = await fetchWithAuth(`${API_URL}/bookreads/${bookReadId}/chapters/${chapterId}/read`, { method: 'POST' }, token);
       let readAt = new Date().toLocaleDateString('en-US', {
         year: 'numeric', month: 'long', day: 'numeric'
       });
@@ -192,14 +195,14 @@ export default function ReadingList() {
       const allRead = allChapters.every((c: any) => readChapters[bookReadId]?.has(c.id) || c.id === chapterId);
       if (allChapters.length > 0 && allRead) {
         if (window.confirm('Congratulations! You finished the book. Mark as finished and allow rereading?')) {
-          await fetch(`${API_URL}/books/${googleBookId}/finish`, { method: 'POST' });
+          await fetchWithAuth(`${API_URL}/books/${googleBookId}/finish`, { method: 'POST' }, token);
           // Redirect to history and pass completed book ID in state
           navigate('/history', { state: { completedGoogleBookId: googleBookId } });
         }
       }
     } else if (isMostRecent) {
       if (window.confirm('Are you sure you want to undo the most recent read for this chapter?')) {
-        const res = await fetch(`${API_URL}/books/${googleBookId}/chapters/${chapterId}/read`, { method: 'DELETE' });
+  const res = await fetchWithAuth(`${API_URL}/books/${googleBookId}/chapters/${chapterId}/read`, { method: 'DELETE' }, token);
         if (res.ok) {
           setReadChapters(prev => {
             const updated = { ...prev };
@@ -261,7 +264,7 @@ export default function ReadingList() {
                   sx={{ ml: 1, color: '#888', '&:hover': { color: '#d32f2f', backgroundColor: '#f5f5f5' } }}
                   onClick={async () => {
                     if (!window.confirm('Are you sure you want to delete this book and all its progress?')) return;
-                    const res = await fetch(`${API_URL}/bookreads/${br.id}`, { method: 'DELETE' });
+                    const res = await fetchWithAuth(`${API_URL}/bookreads/${br.id}`, { method: 'DELETE' }, token);
                     if (res.ok) {
                       setBookReads(prev => prev.filter(b => b.id !== br.id));
                     } else {

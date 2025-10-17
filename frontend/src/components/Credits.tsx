@@ -1,18 +1,21 @@
 
 import { useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
+import { fetchWithAuth } from '../fetchWithAuth';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useNavigate } from 'react-router-dom';
-
 export default function Credits() {
+  const { token } = useAuth();
   const API_URL = import.meta.env.VITE_API_URL;
   const [summary, setSummary] = useState({ totalEarned: 0, currentBalance: 0 });
   const navigate = useNavigate();
 
+
   useEffect(() => {
     const fetchRewardsSummary = () => {
-      fetch(`${API_URL}/rewards/summary`)
+      fetchWithAuth(`${API_URL}/rewards/summary`, {}, token)
         .then(r => r.json())
         .then(j => {
           setSummary({
@@ -25,7 +28,7 @@ export default function Credits() {
     fetchRewardsSummary();
     (window as any).updateCredits = fetchRewardsSummary;
     return () => { delete (window as any).updateCredits; };
-  }, []);
+  }, [token]);
 
   return (
     <Paper
@@ -50,10 +53,9 @@ export default function Credits() {
           },
         },
       }}
-      onClick={() => navigate('/rewards')}
       tabIndex={0}
-      role="button"
-      aria-label="View rewards"
+      role="region"
+      aria-label="View rewards and logout"
     >
       <Box sx={{ textAlign: 'center' }}>
         <Typography
@@ -68,7 +70,9 @@ export default function Credits() {
             justifyContent: 'center',
             gap: 0.5,
             fontSize: '0.75rem',
+            cursor: 'pointer',
           }}
+          onClick={() => navigate('/rewards')}
         >
           <span>🏒</span>
           Reading Earnings

@@ -6,6 +6,8 @@ declare global {
 }
 
 import { useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
+import { fetchWithAuth } from '../fetchWithAuth';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -21,6 +23,7 @@ import InfoBanner from './InfoBanner';
 import type { BookSummaryDto } from '../types/dto';
 
 export default function Search() {
+  const { token } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState(0);
   const [] = useState(false); // Only needed for legacy, can be removed after refactor
@@ -38,7 +41,7 @@ export default function Search() {
   // Fetch all books in DB on mount
   useEffect(() => {
     const fetchExistingBooks = async () => {
-      const r = await fetch(`${API_URL}/books`);
+      const r = await fetchWithAuth(`${API_URL}/books`, {}, token);
       if (r.ok) {
         const books = await r.json();
         const map: { [googleBookId: string]: any } = {};
@@ -47,13 +50,13 @@ export default function Search() {
       }
     };
     fetchExistingBooks();
-  }, []);
+  }, [token]);
 
   const search = async () => {
     const params = new URLSearchParams();
     if (title) params.append('title', title);
     if (author) params.append('author', author);
-    const r = await fetch(`${API_URL}/search?` + params.toString());
+    const r = await fetchWithAuth(`${API_URL}/search?` + params.toString(), {}, token);
     const docs: BookSummaryDto[] = await r.json();
     // Move any existing book to top
     const sorted = docs.sort((a, b) => {
@@ -80,21 +83,18 @@ export default function Search() {
       name: `Chapter ${idx + 1}`,
       googleBookId: book.googleBookId
     }));
-    console.log("Chapters to send:", chapters);
     // Save book first (authors as array)
-    const bookRes = await fetch(`${API_URL}/books`, {
+    const bookRes = await fetchWithAuth(`${API_URL}/books`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ googleBookId: book.googleBookId, title: book.title, authors: Array.isArray(book.authors) ? book.authors : [book.authors], description: book.description, thumbnailUrl: book.thumbnailUrl })
-    });
+    }, token);
     if (!bookRes.ok) {
       alert('Failed to add book.');
       return;
     }
     // Save chapters
-    const chaptersRes = await fetch(`${API_URL}/books/${book.googleBookId}/chapters`, {
+    const chaptersRes = await fetchWithAuth(`${API_URL}/books/${book.googleBookId}/chapters`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(chapters)
-    });
-    const chaptersResText = await chaptersRes.text();
-    console.log("Chapters response:", chaptersRes.status, chaptersResText);
+    }, token);
     if (!chaptersRes.ok) {
       alert('Failed to add chapters.');
       return;
@@ -115,7 +115,7 @@ export default function Search() {
     setError("");
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/search?isbn=${isbnOrUpc}`);
+      const response = await fetchWithAuth(`${API_URL}/search?isbn=${isbnOrUpc}`, {}, token);
       if (!response.ok) throw new Error(`Book not found for code ${isbnOrUpc}`);
       const books: BookSummaryDto[] = await response.json();
       const book = books[0];

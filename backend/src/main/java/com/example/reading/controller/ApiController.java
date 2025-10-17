@@ -2,6 +2,8 @@ package com.example.reading.controller;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -16,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*")
 public class ApiController {
 
     @Autowired
@@ -34,12 +35,10 @@ public class ApiController {
     @Autowired
     RewardRepository rewardRepo;
 
-    // Hardcoded user for all API calls until JWT is implemented
-    private static final String HARDCODED_USERNAME = "kidreader";
 
-    private User getCurrentUser() {
-        return userRepo.findByUsername(HARDCODED_USERNAME)
-                .orElseThrow(() -> new RuntimeException("Hardcoded user not found"));
+    private User getCurrentUser(UserDetails userDetails) {
+        return userRepo.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
     @GetMapping("/search")
@@ -48,8 +47,8 @@ public class ApiController {
     }
 
     @GetMapping("/books")
-    public List<Map<String, Object>> getBooks() {
-        User user = getCurrentUser();
+    public List<Map<String, Object>> getBooks(@AuthenticationPrincipal UserDetails userDetails) {
+        User user = getCurrentUser(userDetails);
         List<BookRead> bookReads = bookReadRepo.findByUserId(user.getId());
         Map<String, Map<String, Object>> bookMap = new HashMap<>();
         for (BookRead br : bookReads) {
@@ -80,8 +79,8 @@ public class ApiController {
     }
 
     @PostMapping("/books")
-    public Book saveBook(@RequestBody BookSummaryDto dto) {
-        User user = getCurrentUser();
+    public Book saveBook(@RequestBody BookSummaryDto dto, @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getCurrentUser(userDetails);
         Book b = new Book();
         b.setGoogleBookId(dto.getGoogleBookId());
         b.setTitle(dto.getTitle());
@@ -99,8 +98,8 @@ public class ApiController {
 
     @PostMapping("/books/{googleBookId}/finish")
     @Transactional
-    public ResponseEntity<?> finishBook(@PathVariable String googleBookId) {
-        User user = getCurrentUser();
+    public ResponseEntity<?> finishBook(@PathVariable String googleBookId, @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getCurrentUser(userDetails);
         List<BookRead> bookReads = bookReadRepo.findByUserId(user.getId());
         boolean found = false;
         for (BookRead br : bookReads) {
@@ -128,8 +127,8 @@ public class ApiController {
 
     // New: Mark a chapter as read for a specific BookRead instance
     @PostMapping("/bookreads/{bookReadId}/chapters/{chapterId}/read")
-    public ChapterRead markReadForBookRead(@PathVariable UUID bookReadId, @PathVariable UUID chapterId) {
-        User user = getCurrentUser();
+    public ChapterRead markReadForBookRead(@PathVariable UUID bookReadId, @PathVariable UUID chapterId, @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getCurrentUser(userDetails);
         ChapterRead cr = new ChapterRead();
         cr.setBookReadId(bookReadId);
         cr.setChapterId(chapterId);
@@ -149,8 +148,8 @@ public class ApiController {
     }
 
     @DeleteMapping("/books/{olid}/chapters/{chapterId}/read")
-    public ResponseEntity<?> deleteRead(@PathVariable String olid, @PathVariable UUID chapterId) {
-        User user = getCurrentUser();
+    public ResponseEntity<?> deleteRead(@PathVariable String olid, @PathVariable UUID chapterId, @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getCurrentUser(userDetails);
         List<ChapterRead> reads = readRepo.findByUserId(user.getId()).stream()
                 .filter(r -> chapterId.equals(r.getChapterId()))
                 .collect(Collectors.toList());
@@ -168,8 +167,8 @@ public class ApiController {
     }
 
     @GetMapping("/credits")
-    public Map<String, Object> credits() {
-        User user = getCurrentUser();
+    public Map<String, Object> credits(@AuthenticationPrincipal UserDetails userDetails) {
+        User user = getCurrentUser(userDetails);
         List<Reward> rewards = rewardRepo.findByUserId(user.getId());
         int totalCents = rewards.stream()
                 .filter(r -> r.getType() == RewardType.EARN)
@@ -183,8 +182,8 @@ public class ApiController {
     }
 
     @GetMapping("/history")
-    public List<ChapterRead> history() {
-        User user = getCurrentUser();
+    public List<ChapterRead> history(@AuthenticationPrincipal UserDetails userDetails) {
+        User user = getCurrentUser(userDetails);
         return readRepo.findByUserId(user.getId());
     }
 
@@ -198,8 +197,8 @@ public class ApiController {
     // Returns all in-progress BookRead objects for the current user, with book info
     // and read chapter IDs
     @GetMapping("/bookreads/in-progress")
-    public List<BookReadProgressDto> getInProgressBookReads() {
-        User user = getCurrentUser();
+    public List<BookReadProgressDto> getInProgressBookReads(@AuthenticationPrincipal UserDetails userDetails) {
+        User user = getCurrentUser(userDetails);
         List<BookRead> bookReads = bookReadRepo.findByUserId(user.getId());
         List<BookReadProgressDto> result = new ArrayList<>();
         for (BookRead br : bookReads) {
@@ -222,8 +221,9 @@ public class ApiController {
     @GetMapping("/rewards")
     public Map<String, Object> getRewards(
             @RequestParam(value = "page", required = false, defaultValue = "1") int page,
-            @RequestParam(value = "pageSize", required = false, defaultValue = "10") int pageSize) {
-        User user = getCurrentUser();
+            @RequestParam(value = "pageSize", required = false, defaultValue = "10") int pageSize,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getCurrentUser(userDetails);
         List<Reward> allRewards = rewardRepo.findByUserId(user.getId());
         // Sort rewards by createdAt descending (most recent first)
         allRewards.sort((a, b) -> {
@@ -291,8 +291,8 @@ public class ApiController {
 
     // Returns a summary of rewards for the current user
     @GetMapping("/rewards/summary")
-    public Map<String, Object> getRewardsSummary() {
-        User user = getCurrentUser();
+    public Map<String, Object> getRewardsSummary(@AuthenticationPrincipal UserDetails userDetails) {
+        User user = getCurrentUser(userDetails);
         Double earned = rewardRepo.getTotalEarnedByUserId(user.getId());
         Double paidOut = rewardRepo.getTotalPaidOutByUserId(user.getId());
         Double spent = rewardRepo.getTotalSpentByUserId(user.getId());
@@ -310,8 +310,8 @@ public class ApiController {
 
     // Endpoint to spend rewards (creates a SPEND reward)
     @PostMapping("/rewards/spend")
-    public ResponseEntity<?> spendReward(@RequestParam double amount, @RequestParam String note) {
-        User user = getCurrentUser();
+    public ResponseEntity<?> spendReward(@RequestParam double amount, @RequestParam String note, @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getCurrentUser(userDetails);
         if (amount <= 0) {
             return ResponseEntity.badRequest().body("Amount must be positive");
         }
@@ -341,8 +341,8 @@ public class ApiController {
 
     // Create a new BookRead for an existing Book (for reread)
     @PostMapping("/books/{googleBookId}/reread")
-    public ResponseEntity<BookRead> rereadBook(@PathVariable String googleBookId) {
-        User user = getCurrentUser();
+    public ResponseEntity<BookRead> rereadBook(@PathVariable String googleBookId, @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getCurrentUser(userDetails);
         Optional<Book> bookOpt = bookRepo.findById(googleBookId);
         if (bookOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -357,8 +357,8 @@ public class ApiController {
     // Delete a BookRead and all associated ChapterReads and Rewards for the current user
     @DeleteMapping("/bookreads/{bookReadId}")
     @Transactional
-    public ResponseEntity<?> deleteBookRead(@PathVariable UUID bookReadId) {
-        User user = getCurrentUser();
+    public ResponseEntity<?> deleteBookRead(@PathVariable UUID bookReadId, @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getCurrentUser(userDetails);
         Optional<BookRead> bookReadOpt = bookReadRepo.findById(bookReadId);
         if (bookReadOpt.isEmpty() || !user.getId().equals(bookReadOpt.get().getUserId())) {
             return ResponseEntity.notFound().build();

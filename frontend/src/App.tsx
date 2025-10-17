@@ -14,12 +14,16 @@ import Typography from '@mui/material/Typography';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { bruinsTheme } from './theme';
+import Login from './components/Login';
+import { useAuth } from './components/AuthContext';
 
 
 function MainApp() {
   const KID_NAME = import.meta.env.VITE_KID_NAME;
   const location = useLocation();
   const navigate = useNavigate();
+  const { token, logout } = useAuth();
+  const API_URL = import.meta.env.VITE_API_URL;
   useEffect(() => {
     if (KID_NAME) {
       document.title = `${KID_NAME}'s Reading Rewards`;
@@ -33,6 +37,21 @@ function MainApp() {
     location.pathname === '/list' ? 'list'
       : location.pathname === '/history' ? 'history'
         : 'search';
+
+  // Logout handler for AppBar
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : undefined,
+      });
+    } catch (e) {
+      // Ignore errors, just ensure local logout
+    } finally {
+      logout();
+      navigate('/');
+    }
+  };
 
   return (
     <ThemeProvider theme={bruinsTheme}>
@@ -52,49 +71,73 @@ function MainApp() {
             <Toolbar
               sx={{
                 display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'center', sm: 'center' },
+                justifyContent: 'space-between',
                 gap: 2,
                 minHeight: 120,
               }}
             >
-              <Typography
-                variant="h4"
-                component="div"
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 2,
-                  fontWeight: 900,
-                  color: '#FFB81C',
-                  textShadow: '0 1px 3px rgba(255, 184, 28, 0.15), 0 1px 0 #000',
-                  letterSpacing: 2,
-                  fontFamily: `'Luckiest Guy', 'Fredoka One', 'Baloo 2', 'Arial Rounded MT Bold', Arial, sans-serif`,
-                  fontSize: { xs: '2rem', sm: '2.8rem', md: '3.2rem' },
-                  lineHeight: 1.1,
-                  py: 1,
-                }}
-              >
-                <span role="img" aria-label="hockey">🏒</span>
-                {KID_NAME}'s Reading Rewards
-                <span role="img" aria-label="hockey">🏒</span>
-              </Typography>
-              <link
-                href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Fredoka+One&family=Baloo+2:wght@700&display=swap"
-                rel="stylesheet"
-              />
-              <Tabs
-                value={tabValue}
-                onChange={(_e, v) => {
-                  navigate(v === 'list' ? '/list' : v === 'history' ? '/history' : '/search');
-                }}
-                sx={{ minHeight: 48 }}
-              >
-                <Tab label="Current Books" value="list" />
-                <Tab label="Reading History" value="history" />
-                <Tab label="Find Books" value="search" />
-              </Tabs>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <Typography
+                  variant="h4"
+                  component="div"
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 2,
+                    fontWeight: 900,
+                    color: '#FFB81C',
+                    textShadow: '0 1px 3px rgba(255, 184, 28, 0.15), 0 1px 0 #000',
+                    letterSpacing: 2,
+                    fontFamily: `'Luckiest Guy', 'Fredoka One', 'Baloo 2', 'Arial Rounded MT Bold', Arial, sans-serif`,
+                    fontSize: { xs: '2rem', sm: '2.8rem', md: '3.2rem' },
+                    lineHeight: 1.1,
+                    py: 1,
+                  }}
+                >
+                  <span role="img" aria-label="hockey">🏒</span>
+                  {KID_NAME}'s Reading Rewards
+                  <span role="img" aria-label="hockey">🏒</span>
+                </Typography>
+                <link
+                  href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Fredoka+One&family=Baloo+2:wght@700&display=swap"
+                  rel="stylesheet"
+                />
+                <Tabs
+                  value={tabValue}
+                  onChange={(_e, v) => {
+                    navigate(v === 'list' ? '/list' : v === 'history' ? '/history' : '/search');
+                  }}
+                  sx={{ minHeight: 48 }}
+                >
+                  <Tab label="Current Books" value="list" />
+                  <Tab label="Reading History" value="history" />
+                  <Tab label="Find Books" value="search" />
+                </Tabs>
+              </Box>
+              {/* Logout button on right of AppBar */}
+              <Box sx={{ display: 'flex', alignItems: 'center', mt: { xs: 2, sm: 0 } }}>
+                <button
+                  id="logout-btn"
+                  style={{
+                    background: '#000',
+                    color: '#FFB81C',
+                    border: '2px solid #FFB81C',
+                    borderRadius: 8,
+                    padding: '6px 18px',
+                    fontWeight: 700,
+                    fontSize: '1rem',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s, color 0.2s',
+                    marginLeft: 12,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  }}
+                  onClick={handleLogout}
+                >
+                  Log Out
+                </button>
+              </Box>
             </Toolbar>
             <Box sx={{ padding: 1 }} />
           </AppBar>
@@ -124,6 +167,10 @@ function MainApp() {
 }
 
 export default function App() {
+  const { token, login } = useAuth();
+  if (!token) {
+    return <Login onLogin={login} />;
+  }
   return (
     <Router>
       <MainApp />
