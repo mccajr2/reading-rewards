@@ -16,6 +16,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { bruinsTheme } from './theme';
 import Login from './components/Login';
 import Signup from './components/Signup';
+import ParentDashboard from './components/ParentDashboard';
 import { useAuth } from './components/AuthContext';
 import VerifyEmail from './components/VerifyEmail';
 
@@ -34,11 +35,21 @@ function MainApp() {
     }
   }, [KID_NAME]);
 
-  // Tab value based on route
-  const tabValue =
-    location.pathname === '/list' ? 'list'
-      : location.pathname === '/history' ? 'history'
-        : 'search';
+  // Tab value based on route (refactored to switch)
+  let tabValue: string;
+  switch (location.pathname) {
+    case '/list':
+      tabValue = 'list';
+      break;
+    case '/history':
+      tabValue = 'history';
+      break;
+    case '/parent-dashboard':
+      tabValue = 'parent_dashboard';
+      break;
+    default:
+      tabValue = 'search';
+  }
 
   // Logout handler for AppBar
   const handleLogout = async () => {
@@ -53,7 +64,7 @@ function MainApp() {
       logout();
       navigate('/');
     }
-  };
+  }
 
   return (
     <ThemeProvider theme={bruinsTheme}>
@@ -109,13 +120,28 @@ function MainApp() {
                 <Tabs
                   value={tabValue}
                   onChange={(_e, v) => {
-                    navigate(v === 'list' ? '/list' : v === 'history' ? '/history' : '/search');
+                    switch (v) {
+                      case 'list':
+                        navigate('/list');
+                        break;
+                      case 'history':
+                        navigate('/history');
+                        break;
+                      case 'parent_dashboard':
+                        navigate('/parent-dashboard');
+                        break;
+                      default:
+                        navigate('/search');
+                    }
                   }}
                   sx={{ minHeight: 48 }}
                 >
                   <Tab label="Current Books" value="list" />
                   <Tab label="Reading History" value="history" />
                   <Tab label="Find Books" value="search" />
+                  {user?.role === 'PARENT' && (
+                    <Tab label="Kids" value="parent_dashboard" />
+                  )}
                 </Tabs>
               </Box>
               {/* Logout button on right of AppBar */}
@@ -160,6 +186,9 @@ function MainApp() {
               <Route path="/history" element={<History />} />
               <Route path="/rewards" element={<Rewards />} />
               <Route path="/signup" element={<Signup />} />
+              {user?.role === 'PARENT' && (
+                <Route path="/parent-dashboard" element={<ParentDashboard />} />
+              )}
               <Route path="*" element={<Search />} />
             </Routes>
           </Box>
@@ -170,19 +199,27 @@ function MainApp() {
 }
 
 export default function App() {
-  const { token, login } = useAuth();
+  const { token, login, user } = useAuth();
   if (!token) {
-      return (
-        <Router>
-          <Routes>
-            <Route path="/login" element={<Login onLogin={login} />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/verify-email" element={<VerifyEmail />} />
-            <Route path="*" element={<Login onLogin={login} />} />
-          </Routes>
-        </Router>
-      );
+    return (
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login onLogin={(token: string, user: any) => {
+            login(token, user);
+            if (user.role === 'PARENT') {
+              window.location.replace('/parent-dashboard');
+            } else {
+              window.location.replace('/search');
+            }
+          }} />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="*" element={<Login onLogin={login} />} />
+        </Routes>
+      </Router>
+    );
   }
+  // Authenticated: always show MainApp, ParentDashboard is a tab only for parents
   return (
     <Router>
       <Routes>

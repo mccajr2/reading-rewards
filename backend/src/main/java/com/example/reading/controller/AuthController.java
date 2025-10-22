@@ -19,6 +19,10 @@ import org.springframework.beans.factory.annotation.Value;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -87,7 +91,12 @@ public class AuthController {
         try {
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(username, password));
-            User user = userRepository.findByUsername(username).orElseThrow();
+            User user;
+            if (username.contains("@")) {
+                user = userRepository.findByEmail(username).orElseThrow();
+            } else {
+                user = userRepository.findByUsername(username).orElseThrow();
+            }
             // Only require verification for parents
             if (user.getRole() == User.UserRole.PARENT && (user.getStatus() == null || !user.getStatus().equals("VERIFIED"))) {
                 return ResponseEntity.status(403).body("Parent account not verified. Please check your email.");
@@ -107,4 +116,6 @@ public class AuthController {
         // For JWT, logout is handled on the client by deleting the token.
         return ResponseEntity.ok().build();
     }
+
+
 }
