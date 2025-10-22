@@ -47,6 +47,9 @@ function MainApp() {
     case '/parent-dashboard':
       tabValue = 'parent_dashboard';
       break;
+    case '/rewards':
+      tabValue = 'rewards';
+      break;
     default:
       tabValue = 'search';
   }
@@ -130,6 +133,9 @@ function MainApp() {
                       case 'parent_dashboard':
                         navigate('/parent-dashboard');
                         break;
+                      case 'rewards':
+                        navigate('/rewards');
+                        break;
                       default:
                         navigate('/search');
                     }
@@ -141,6 +147,9 @@ function MainApp() {
                   <Tab label="Find Books" value="search" />
                   {user?.role === 'PARENT' && (
                     <Tab label="Kids" value="parent_dashboard" />
+                  )}
+                  {user?.role === 'CHILD' && (
+                    <Tab label="My Rewards" value="rewards" />
                   )}
                 </Tabs>
               </Box>

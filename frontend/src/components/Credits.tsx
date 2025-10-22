@@ -56,6 +56,7 @@ export default function Credits() {
       tabIndex={0}
       role="region"
       aria-label="View rewards and logout"
+      onClick={() => navigate('/rewards')}
     >
       <Box sx={{ textAlign: 'center' }}>
         <Typography
@@ -72,7 +73,6 @@ export default function Credits() {
             fontSize: '0.75rem',
             cursor: 'pointer',
           }}
-          onClick={() => navigate('/rewards')}
         >
           <span>🏒</span>
           Reading Earnings
