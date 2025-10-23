@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import Search from './components/Search';
 import ReadingList from './components/ReadingList';
 import History from './components/History';
@@ -36,6 +36,17 @@ function MainApp() {
       document.title = 'Reading Rewards';
     }
   }, [KID_NAME]);
+
+  // Auto-redirect to correct tab on initial load
+  useEffect(() => {
+    if (location.pathname === '/' && user) {
+      if (user.role === 'PARENT') {
+        navigate('/kids', { replace: true });
+      } else if (user.role === 'CHILD') {
+        navigate('/search', { replace: true });
+      }
+    }
+  }, [location.pathname, user, navigate]);
 
   let tabValue: string;
   switch (location.pathname) {
@@ -233,18 +244,22 @@ function MainApp() {
 
 export default function App() {
   const { token, login, user } = useAuth();
+  const [redirectPath, setRedirectPath] = useState<string | null>(null);
+
   if (!token) {
     return (
       <Router>
         <Routes>
-          <Route path="/login" element={<Login onLogin={(token: string, user: any) => {
-            login(token, user);
-            if (user.role === 'PARENT') {
-              window.location.replace('/kids');
-            } else {
-              window.location.replace('/search');
-            }
-          }} />} />
+          <Route path="/login" element={
+            redirectPath ? (
+              <Navigate to={redirectPath} />
+            ) : (
+              <Login onLogin={(token: string, user: any) => {
+                login(token, user);
+                setRedirectPath('/'); // Always redirect to root
+              }} />
+            )
+          } />
           <Route path="/signup" element={<Signup />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="*" element={<Login onLogin={login} />} />
