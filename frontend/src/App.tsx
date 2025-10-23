@@ -17,8 +17,10 @@ import { bruinsTheme } from './theme';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import ParentDashboard from './components/ParentDashboard';
+import ParentSummary from './components/ParentSummary';
 import { useAuth } from './components/AuthContext';
 import VerifyEmail from './components/VerifyEmail';
+import NotFound from './components/NotFound';
 
 
 function MainApp() {
@@ -35,7 +37,6 @@ function MainApp() {
     }
   }, [KID_NAME]);
 
-  // Tab value based on route (refactored to switch)
   let tabValue: string;
   switch (location.pathname) {
     case '/list':
@@ -44,11 +45,14 @@ function MainApp() {
     case '/history':
       tabValue = 'history';
       break;
-    case '/parent-dashboard':
-      tabValue = 'parent_dashboard';
-      break;
     case '/rewards':
       tabValue = 'rewards';
+      break;
+    case '/kids':
+      tabValue = 'kids';
+      break;
+    case '/summary':
+      tabValue = 'summary';
       break;
     default:
       tabValue = 'search';
@@ -77,9 +81,11 @@ function MainApp() {
         background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
       }}>
         {/* Docked Credits badge in upper right of viewport */}
-        <Box sx={{ position: 'fixed', top: 20, right: 32, zIndex: 2000 }}>
-          <Credits />
-        </Box>
+        {user?.role === 'CHILD' && (
+          <Box sx={{ position: 'fixed', top: 20, right: 32, zIndex: 2000 }}>
+            <Credits />
+          </Box>
+        )}
 
         <Box sx={{ maxWidth: 1400, mx: 'auto', py: 3, pr: { xs: 2, sm: 28 }, px: 3 }}>
           <AppBar position="static" color="secondary" elevation={0} sx={{ borderRadius: 2, mb: 3 }}>
@@ -130,11 +136,14 @@ function MainApp() {
                       case 'history':
                         navigate('/history');
                         break;
-                      case 'parent_dashboard':
-                        navigate('/parent-dashboard');
-                        break;
                       case 'rewards':
                         navigate('/rewards');
+                        break;
+                      case 'kids':
+                        navigate('/kids');
+                        break;
+                      case 'summary':
+                        navigate('/summary');
                         break;
                       default:
                         navigate('/search');
@@ -142,14 +151,23 @@ function MainApp() {
                   }}
                   sx={{ minHeight: 48 }}
                 >
-                  <Tab label="Current Books" value="list" />
-                  <Tab label="Reading History" value="history" />
-                  <Tab label="Find Books" value="search" />
-                  {user?.role === 'PARENT' && (
-                    <Tab label="Kids" value="parent_dashboard" />
+                  {user?.role === 'CHILD' && (
+                    <Tab label="Current Books" value="list" />
+                  )}
+                  {user?.role === 'CHILD' && (
+                    <Tab label="Reading History" value="history" />
+                  )}
+                  {user?.role === 'CHILD' && (
+                    <Tab label="Find Books" value="search" />
                   )}
                   {user?.role === 'CHILD' && (
                     <Tab label="My Rewards" value="rewards" />
+                  )}
+                  {user?.role === 'PARENT' && (
+                    <Tab label="Kids Accounts" value="kids" />
+                  )}
+                  {user?.role === 'PARENT' && (
+                    <Tab label="Kids Summary" value="summary" />
                   )}
                 </Tabs>
               </Box>
@@ -190,15 +208,21 @@ function MainApp() {
             }}
           >
             <Routes>
-              <Route path="/search" element={<Search />} />
-              <Route path="/list" element={<ReadingList />} />
-              <Route path="/history" element={<History />} />
-              <Route path="/rewards" element={<Rewards />} />
-              <Route path="/signup" element={<Signup />} />
-              {user?.role === 'PARENT' && (
-                <Route path="/parent-dashboard" element={<ParentDashboard />} />
+              {user?.role === 'CHILD' && (
+                <>
+                  <Route path="/search" element={<Search />} />
+                  <Route path="/list" element={<ReadingList />} />
+                  <Route path="/history" element={<History />} />
+                  <Route path="/rewards" element={<Rewards />} />
+                </>
               )}
-              <Route path="*" element={<Search />} />
+              {user?.role === 'PARENT' && (
+                <>
+                  <Route path="/kids" element={<ParentDashboard />} />
+                  <Route path="/summary" element={<ParentSummary />} />
+                </>
+              )}
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Box>
         </Box>
@@ -216,7 +240,7 @@ export default function App() {
           <Route path="/login" element={<Login onLogin={(token: string, user: any) => {
             login(token, user);
             if (user.role === 'PARENT') {
-              window.location.replace('/parent-dashboard');
+              window.location.replace('/kids');
             } else {
               window.location.replace('/search');
             }
