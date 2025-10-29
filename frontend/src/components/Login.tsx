@@ -17,7 +17,7 @@ export default function Login({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const API_URL = import.meta.env.VITE_API_URL;
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError('');
