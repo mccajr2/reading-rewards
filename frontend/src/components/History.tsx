@@ -1,5 +1,7 @@
 
 import { useState, useEffect, useRef } from 'react';
+import { useAuth } from './AuthContext';
+import { fetchWithAuth } from '../fetchWithAuth';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import { useNavigate } from 'react-router-dom';
@@ -13,6 +15,7 @@ import Avatar from '@mui/material/Avatar';
 
 
 export default function History() {
+  const { token } = useAuth();
   const [books, setBooks] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
@@ -23,7 +26,7 @@ export default function History() {
   const bookRefs = useRef<{ [googleBookId: string]: HTMLDivElement | null }>({});
   useEffect(() => {
     const API_URL = import.meta.env.VITE_API_URL;
-    fetch(`${API_URL}/books`)
+    fetchWithAuth(`${API_URL}/books`, {}, token)
       .then(async r => {
         if (!r.ok) throw new Error(`HTTP error ${r.status}`);
         try {
@@ -35,7 +38,7 @@ export default function History() {
       .then(setBooks)
       .catch(e => setError(e.message));
     // Also fetch in-progress books for reread logic
-    fetch(`${API_URL}/bookreads/in-progress`)
+    fetchWithAuth(`${API_URL}/bookreads/in-progress`, {}, token)
       .then(async r => {
         if (!r.ok) return [];
         try {
@@ -45,7 +48,7 @@ export default function History() {
         }
       })
       .then(setInProgress);
-  }, []);
+  }, [token]);
 
   // Scroll to completed book if present
   useEffect(() => {

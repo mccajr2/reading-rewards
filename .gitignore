@@ -12,6 +12,8 @@ frontend/src/types
 *.ear
 backend/target/
 backend/flyway.conf
+backend/src/main/java/com/example/reading/util/VerifyBcryptTest.java
+backend/src/main/java/com/example/reading/util/KeyGeneratorTool.java
 
 # VSCode/Editor
 .vscode/
@@ -37,4 +39,4 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # Env
-.env
+*.env*

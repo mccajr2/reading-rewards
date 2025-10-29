@@ -46,8 +46,18 @@ public class User {
     @Column(unique = true, length = 100)
     private String username;
 
+
+    @Column(name = "first_name", length = 100)
+    private String firstName;
+
     @Column(nullable = false)
     private String password;
+
+    @Column(name = "status", length = 20)
+    private String status; // UNVERIFIED, VERIFIED
+
+    @Column(name = "verification_token", length = 100)
+    private String verificationToken;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

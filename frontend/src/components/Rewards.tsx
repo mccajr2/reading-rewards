@@ -1,5 +1,7 @@
 
 import { useEffect, useState } from 'react';
+import { useAuth } from './AuthContext';
+import { fetchWithAuth } from '../fetchWithAuth';
 import { Box, Paper, Typography, Stack, Button, TextField, List, ListItem, Divider, Pagination } from '@mui/material';
  
 interface Book {
@@ -31,6 +33,7 @@ interface Reward {
 }
 
 export default function Rewards() {
+    const { token } = useAuth();
     const API_URL = import.meta.env.VITE_API_URL;
     const [summary, setSummary] = useState({ totalEarned: 0, totalPaidOut: 0, totalSpent: 0, currentBalance: 0 });
     const [rewards, setRewards] = useState<Reward[]>([]);
@@ -43,11 +46,11 @@ export default function Rewards() {
     const [loading, setLoading] = useState(false);
 
     const fetchSummary = async () => {
-        const r = await fetch(`${API_URL}/rewards/summary`);
+        const r = await fetchWithAuth(`${API_URL}/rewards/summary`, {}, token);
         setSummary(await r.json());
     };
     const fetchRewards = async (pageNum = page) => {
-        const r = await fetch(`${API_URL}/rewards?page=${pageNum}&pageSize=${pageSize}`);
+        const r = await fetchWithAuth(`${API_URL}/rewards?page=${pageNum}&pageSize=${pageSize}`, {}, token);
         const data = await r.json();
         // Expecting { rewards: [...], totalCount: number }
         setRewards((data.rewards || data).map((rw: any) => {
@@ -78,7 +81,7 @@ export default function Rewards() {
     const handlePayout = async () => {
         if (!payout || isNaN(Number(payout))) return;
         setLoading(true);
-        await fetch(`${API_URL}/rewards/payout?amount=${encodeURIComponent(payout)}`, { method: 'POST' });
+    await fetchWithAuth(`${API_URL}/rewards/payout?amount=${encodeURIComponent(payout)}`, { method: 'POST' }, token);
         setPayout('');
         await fetchSummary();
         await fetchRewards(page); // Pass current page to maintain pagination
@@ -88,7 +91,7 @@ export default function Rewards() {
     const handleSpend = async () => {
         if (!spend || isNaN(Number(spend)) || !spendNote) return;
         setLoading(true);
-        await fetch(`${API_URL}/rewards/spend?amount=${encodeURIComponent(spend)}&note=${encodeURIComponent(spendNote)}`, { method: 'POST' });
+    await fetchWithAuth(`${API_URL}/rewards/spend?amount=${encodeURIComponent(spend)}&note=${encodeURIComponent(spendNote)}`, { method: 'POST' }, token);
         setSpend('');
         setSpendNote('');
         await fetchSummary();
