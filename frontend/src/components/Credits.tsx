@@ -55,7 +55,7 @@ export default function Credits() {
       }}
       tabIndex={0}
       role="region"
-      aria-label="View rewards and logout"
+      aria-label="View rewards"
       onClick={() => navigate('/rewards')}
     >
       <Box sx={{ textAlign: 'center' }}>
