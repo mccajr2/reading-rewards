@@ -111,8 +111,11 @@ CREATE INDEX idx_rewards_user_id ON rewards(user_id);
 CREATE INDEX idx_rewards_type ON rewards(type);
 CREATE INDEX idx_rewards_chapter_read_id ON rewards(chapter_read_id);
 
--- Insert test users
--- Note: Password is 'password123' hashed with bcrypt (you should use proper password encoding in production)
-INSERT INTO users (id, role, parent_id, email, username, password, created_at, updated_at) VALUES
-    ('00000000-0000-0000-0000-000000000001', 'PARENT', NULL, 'parent@example.com', NULL, '$2a$10$rBV2JDeWW2eQhXa6ZF1kD.t7bCZvF/6.vNvZq1fVLvJZlJqBKOZSa', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-    ('00000000-0000-0000-0000-000000000002', 'CHILD', '00000000-0000-0000-0000-000000000001', NULL, 'kidreader', '$2a$10$rBV2JDeWW2eQhXa6ZF1kD.t7bCZvF/6.vNvZq1fVLvJZlJqBKOZSa', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+
+-- Add first_name column
+ALTER TABLE users ADD COLUMN first_name VARCHAR(100);
+
+-- Add status and verification_token columns
+ALTER TABLE users ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'UNVERIFIED';
+ALTER TABLE users ADD COLUMN verification_token VARCHAR(255);

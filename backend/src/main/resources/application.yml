@@ -15,10 +15,17 @@ spring:
     enabled: true
     locations: classpath:db/migration
   mail:
-    host: smtp.mailtrap.io
-    port: 2525
-    username: ${MAILTRAP_USERNAME}
-    password: ${MAILTRAP_PASSWORD}
+    host: ${MAIL_HOST:smtp.mailtrap.io}
+    port: ${MAIL_PORT:2525}
+    username: ${MAIL_USERNAME:${MAILTRAP_USERNAME}}
+    password: ${MAIL_PASSWORD:${MAILTRAP_PASSWORD}}
+    from: ${MAIL_FROM:noreply@example.com}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 server:
   port: 8080
