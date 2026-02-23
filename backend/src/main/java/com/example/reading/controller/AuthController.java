@@ -28,6 +28,8 @@ import java.util.List;
 public class AuthController {
     @Value("${frontend.url}")
     private String frontendUrl;
+    @Value("${spring.mail.from:noreply@example.com}")
+    private String mailFrom;
     @Autowired
     private JavaMailSender mailSender;
     @Autowired
@@ -64,6 +66,7 @@ public class AuthController {
         userRepository.save(user);
         // Send verification email
         SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(mailFrom);
         message.setTo(email);
         message.setSubject("Verify your Reading Rewards account");
         message.setText("Welcome! Please verify your account by clicking: " +

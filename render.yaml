@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: reading-rewards-backend
+    env: docker
+    plan: free
+    dockerfilePath: backend/Dockerfile
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_USER
+        sync: false
+      - key: DATABASE_PASSWORD
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+    autoDeploy: true
+    healthCheckPath: /actuator/health
+    buildFilter:
+      paths:
+        - backend/**
+
+  - type: web
+    name: reading-rewards-frontend
+    env: docker
+    plan: free
+    dockerfilePath: frontend/Dockerfile
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - frontend/**
+
+  - type: postgres
+    name: reading-rewards-db
+    plan: free
+    ipAllowList: []
