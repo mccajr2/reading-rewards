@@ -28,10 +28,8 @@ import java.util.List;
 public class AuthController {
     @Value("${frontend.url}")
     private String frontendUrl;
-    @Value("${spring.mail.from:noreply@example.com}")
-    private String mailFrom;
     @Autowired
-    private JavaMailSender mailSender;
+    private com.example.reading.service.BrevoEmailService brevoEmailService;
     @Autowired
     private AuthenticationManager authenticationManager;
     @Autowired
@@ -64,14 +62,14 @@ public class AuthController {
         user.setStatus("UNVERIFIED");
         user.setVerificationToken(verificationToken);
         userRepository.save(user);
-        // Send verification email
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(mailFrom);
-        message.setTo(email);
-        message.setSubject("Verify your Reading Rewards account");
-        message.setText("Welcome! Please verify your account by clicking: " +
-                frontendUrl + "/verify-email?token=" + verificationToken);
-        mailSender.send(message);
+        // Send verification email using Brevo API
+        String subject = "Verify your Reading Rewards account";
+        String htmlContent = "Welcome! Please verify your account by clicking: " +
+            "<a href='" + frontendUrl + "/verify-email?token=" + verificationToken + "'>Verify Account</a>";
+        boolean sent = brevoEmailService.sendEmail(email, subject, htmlContent);
+        if (!sent) {
+            return ResponseEntity.status(500).body("Signup failed: Could not send verification email.");
+        }
         return ResponseEntity.ok("Signup successful. Please check your email to verify your account.");
     }
 
