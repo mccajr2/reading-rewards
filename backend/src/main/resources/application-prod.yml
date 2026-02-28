@@ -7,20 +7,15 @@ spring:
     hibernate:
       ddl-auto: validate
   mail:
-    host: ${MAIL_HOST:smtp-relay.brevo.com}
-    port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
     from: ${MAIL_FROM}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
 
 server:
   port: 8080
 
+
 frontend:
   url: ${FRONTEND_URL}
+
+brevo:
+  api:
+    key: ${BREVO_API_KEY}

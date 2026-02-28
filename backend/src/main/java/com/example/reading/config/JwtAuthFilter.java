@@ -18,6 +18,11 @@ import java.io.IOException;
 
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
+        private static final String[] PUBLIC_ENDPOINTS = {
+            "/api/auth/signup",
+            "/api/auth/login",
+            "/api/auth/verify-email"
+        };
     @Autowired
     private JwtUtil jwtUtil;
     @Autowired
@@ -26,6 +31,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+        String path = request.getRequestURI();
+        for (String endpoint : PUBLIC_ENDPOINTS) {
+            if (path.equals(endpoint)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+        }
         final String authHeader = request.getHeader("Authorization");
         String username = null;
         String jwt = null;

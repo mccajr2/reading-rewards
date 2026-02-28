@@ -7,31 +7,26 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
+
     @Value("${frontend.url}")
     private String frontendUrl;
-    @Value("${spring.mail.from:noreply@example.com}")
-    private String mailFrom;
     @Autowired
-    private JavaMailSender mailSender;
+    private com.example.reading.service.BrevoEmailService brevoEmailService;
     @Autowired
     private AuthenticationManager authenticationManager;
     @Autowired
@@ -64,14 +59,15 @@ public class AuthController {
         user.setStatus("UNVERIFIED");
         user.setVerificationToken(verificationToken);
         userRepository.save(user);
-        // Send verification email
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(mailFrom);
-        message.setTo(email);
-        message.setSubject("Verify your Reading Rewards account");
-        message.setText("Welcome! Please verify your account by clicking: " +
-                frontendUrl + "/verify-email?token=" + verificationToken);
-        mailSender.send(message);
+        // Send verification email using Brevo API
+        String subject = "Verify your Reading Rewards account";
+        String htmlContent = "Welcome! Please verify your account by clicking: " +
+            "<a href='" + frontendUrl + "/verify-email?token=" + verificationToken + "'>Verify Account</a>";
+        boolean sent = brevoEmailService.sendEmail(email, subject, htmlContent);
+        if (!sent) {
+            log.warn("Signup created user but verification email failed to send for {}", email);
+            return ResponseEntity.accepted().body("Signup successful, but we could not send verification email right now. Please try again shortly.");
+        }
         return ResponseEntity.ok("Signup successful. Please check your email to verify your account.");
     }
 
@@ -92,7 +88,7 @@ public class AuthController {
         String username = body.get("username");
         String password = body.get("password");
         try {
-            Authentication auth = authenticationManager.authenticate(
+            authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(username, password));
             User user;
             if (username.contains("@")) {
